@@ -7,6 +7,7 @@ This is a comprehensive monorepo project containing multiple interconnected appl
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+Language preference: Chinese (中文) - Use Chinese when building and explaining projects.
 
 ## System Architecture
 
