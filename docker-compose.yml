@@ -2,115 +2,41 @@ version: '3.8'
 
 services:
   # MariaDB数据库服务
-  mariadb:
-    image: mariadb:10.11
-    container_name: monorepo_mariadb
+  database:
+    image: mariadb:latest
+    container_name: guandan_db
     environment:
-      - MYSQL_ROOT_PASSWORD=root_password_123
-      - MYSQL_DATABASE=monorepo_db
-      - MYSQL_USER=monorepo_user
-      - MYSQL_PASSWORD=monorepo_password
-    volumes:
-      - mariadb_data:/var/lib/mysql
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: guandan_db
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
     ports:
       - "3306:3306"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_password_123"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+    volumes:
+      - mariadb_data:/var/lib/mysql
     networks:
-      - monorepo-network
+      - app-network
 
-  # 后端API服务
+  # 后端服务 (可选，可以通过docker-compose统一管理)
   backend:
     build: ./backend
-    container_name: monorepo_backend
+    container_name: guandan_backend
     ports:
       - "3000:3000"
+    depends_on:
+      - database
     environment:
-      - NODE_ENV=development
-      - PORT=3000
-      - DB_HOST=mariadb
+      - DB_HOST=database
       - DB_PORT=3306
-      - DB_NAME=monorepo_db
-      - DB_USER=monorepo_user
-      - DB_PASSWORD=monorepo_password
-      - DATABASE_URL=mysql://monorepo_user:monorepo_password@mariadb:3306/monorepo_db
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
-    depends_on:
-      mariadb:
-        condition: service_healthy
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - DB_NAME=guandan_db
+      - DB_USER=user
+      - DB_PASSWORD=password
     networks:
-      - monorepo-network
-
-  # 前端Web应用
-  frontend:
-    build: ./frontend
-    container_name: monorepo_frontend
-    ports:
-      - "3001:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - monorepo-network
-
-  # 管理员前端
-  admin-frontend:
-    build: ./admin-frontend
-    container_name: monorepo_admin
-    ports:
-      - "3002:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - monorepo-network
-
-  # 可选：Redis缓存服务
-  redis:
-    image: redis:7-alpine
-    container_name: monorepo_redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - monorepo-network
+      - app-network
 
 volumes:
   mariadb_data:
-    driver: local
-  redis_data:
-    driver: local
 
 networks:
-  monorepo-network:
+  app-network:
     driver: bridge

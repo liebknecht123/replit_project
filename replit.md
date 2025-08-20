@@ -26,10 +26,11 @@ Language preference: Chinese (中文) - Use Chinese when building and explaining
 - **Build Process**: npm install for dependencies, node server.js for execution
 
 ### Database Architecture
-- **ORM**: Drizzle with PostgreSQL dialect
-- **Schema Management**: Centralized schema definitions in shared directory with Zod validation
-- **Migrations**: Drizzle Kit for database schema migrations
-- **Tables**: Users, services, project statistics with proper relationships and constraints
+- **Database**: PostgreSQL with connection pooling (Replit managed)
+- **Connection**: MySQL2 and pg libraries for dual database support
+- **Schema Management**: SQL-based table creation with automatic initialization
+- **Tables**: Users table with id, username, password_hash, nickname, created_at fields
+- **Backup Option**: MariaDB support via Docker Compose for alternative deployment
 
 ### Build System
 - **Monorepo Structure**: Single package.json with shared dependencies across all services

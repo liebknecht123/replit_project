@@ -2,11 +2,17 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+# 复制package.json文件
 COPY package*.json ./
-RUN npm ci --only=production
 
+# 安装依赖
+RUN npm install
+
+# 复制源代码
 COPY . .
 
+# 暴露端口
 EXPOSE 3000
 
-CMD ["npm", "start"]
+# 启动命令
+CMD ["node", "server.js"]
