@@ -6,6 +6,9 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// 静态文件服务 - 必须在路由之前配置
+app.use(express.static('public'));
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
