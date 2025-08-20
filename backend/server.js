@@ -1,11 +1,15 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const { initializeDatabase } = require('./src/db');
 const { createTables } = require('./src/database');
-const { findUserByUsername, createUser } = require('./src/userService');
+const { findUserByUsername, createUser, validatePassword } = require('./src/userService');
 
 const app = express();
 const PORT = 3000;
+
+// JWT密钥 (生产环境中应该使用环境变量)
+const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 
 // 中间件
 app.use(express.json());
@@ -109,6 +113,89 @@ app.post('/api/auth/register', async (req, res) => {
     
   } catch (error) {
     console.error('用户注册失败:', error.message);
+    res.status(500).json({
+      success: false,
+      message: '服务器内部错误，请稍后重试'
+    });
+  }
+});
+
+// 用户登录API路由
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    // 获取用户名和密码
+    const { username, password } = req.body;
+    
+    // 验证必填字段
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false,
+        message: '用户名和密码不能为空'
+      });
+    }
+    
+    // 检查数据库连接
+    if (!dbConnection) {
+      return res.status(503).json({
+        success: false,
+        message: '数据库连接未建立'
+      });
+    }
+    
+    // 根据username在users表中查找用户
+    const user = await findUserByUsername(username, dbConnection.type, dbConnection.pool);
+    
+    // 如果用户不存在，返回404 Not Found错误
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '用户不存在'
+      });
+    }
+    
+    // 使用bcrypt.compare()比较密码
+    const isPasswordValid = await validatePassword(password, user.password_hash);
+    
+    // 如果密码不匹配，返回401 Unauthorized错误
+    if (!isPasswordValid) {
+      console.log(`用户 ${username} 登录失败: 密码错误`);
+      return res.status(401).json({
+        success: false,
+        message: '密码错误'
+      });
+    }
+    
+    // 生成JWT Token，包含userId和username
+    const tokenPayload = {
+      userId: user.id,
+      username: user.username,
+      iat: Math.floor(Date.now() / 1000) // 签发时间
+    };
+    
+    const token = jwt.sign(tokenPayload, JWT_SECRET, {
+      expiresIn: '24h' // Token有效期24小时
+    });
+    
+    // 返回成功响应包含Token
+    res.status(200).json({
+      success: true,
+      message: '登录成功',
+      data: {
+        user: {
+          id: user.id,
+          username: user.username,
+          nickname: user.nickname,
+          created_at: user.created_at
+        },
+        token: token,
+        expiresIn: '24h'
+      }
+    });
+    
+    console.log(`用户 ${username} 登录成功`);
+    
+  } catch (error) {
+    console.error('用户登录失败:', error.message);
     res.status(500).json({
       success: false,
       message: '服务器内部错误，请稍后重试'
