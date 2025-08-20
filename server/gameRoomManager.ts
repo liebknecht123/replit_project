@@ -21,6 +21,7 @@ interface ActiveRoom {
   status: string;
   players: ConnectedPlayer[];
   createdAt: Date;
+  gameState?: import('./gameLogic').GameState; // 游戏状态
 }
 
 export class GameRoomManager {
@@ -319,5 +320,80 @@ export class GameRoomManager {
         break;
       }
     }
+  }
+
+  // 开始游戏 (需要4个玩家，房主触发)
+  async startGame(roomId: string, hostUserId: number): Promise<{ success: boolean; message: string; gameState?: import('./gameLogic').GameState }> {
+    const room = this.rooms.get(roomId);
+    
+    if (!room) {
+      return { success: false, message: '房间不存在' };
+    }
+    
+    if (room.hostUserId !== hostUserId) {
+      return { success: false, message: '只有房主可以开始游戏' };
+    }
+    
+    if (room.players.length < 2) {  // 暂时用2个玩家测试
+      return { success: false, message: '至少需要2个玩家才能开始游戏' };
+    }
+    
+    if (room.status !== 'waiting') {
+      return { success: false, message: '游戏已经开始或结束' };
+    }
+    
+    // 导入游戏逻辑
+    const { dealCards } = await import('./gameLogic');
+    
+    // 创建游戏状态
+    const playerIds = room.players.map(p => p.userId);
+    const hands = dealCards(playerIds.slice(0, 4)); // 确保最多4个玩家
+    
+    const gameState: import('./gameLogic').GameState = {
+      roomId: roomId,
+      players: playerIds.slice(0, 4),
+      hands: hands,
+      currentPlayer: playerIds[0], // 第一个玩家开始
+      lastPlay: null,
+      tableCards: [],
+      gamePhase: 'playing',
+      currentLevel: 2 // 从2开始
+    };
+    
+    // 更新房间状态
+    room.status = 'playing';
+    room.gameState = gameState;
+    
+    // 更新数据库
+    await db.update(gameRooms)
+      .set({ status: 'playing' })
+      .where(eq(gameRooms.id, roomId));
+    
+    return { 
+      success: true, 
+      message: '游戏开始！', 
+      gameState: gameState 
+    };
+  }
+
+  // 获取房间的游戏状态
+  getGameState(roomId: string): import('./gameLogic').GameState | null {
+    const room = this.rooms.get(roomId);
+    return room?.gameState || null;
+  }
+
+  // 更新房间的游戏状态
+  updateGameState(roomId: string, gameState: import('./gameLogic').GameState): boolean {
+    const room = this.rooms.get(roomId);
+    if (room) {
+      room.gameState = gameState;
+      return true;
+    }
+    return false;
+  }
+
+  // 获取用户的Socket ID
+  getUserSocket(userId: number): string | undefined {
+    return this.userSockets.get(userId);
   }
 }
