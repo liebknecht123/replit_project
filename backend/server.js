@@ -1,12 +1,24 @@
 const express = require('express');
+const http = require('http');
+const socketIo = require('socket.io');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { initializeDatabase } = require('./src/db');
 const { createTables } = require('./src/database');
 const { findUserByUsername, createUser, validatePassword } = require('./src/userService');
+const GameRoomManager = require('./src/gameRoom');
 
 const app = express();
+const server = http.createServer(app);
+const io = socketIo(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
 const PORT = 3000;
+const gameRoomManager = new GameRoomManager();
 
 // JWT密钥 (生产环境中应该使用环境变量)
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
@@ -203,6 +215,167 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// JWT验证中间件 for Socket.IO
+const authenticateSocket = async (socket, next) => {
+  try {
+    const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      console.log(`Socket连接被拒绝: 缺少JWT token, Socket ID: ${socket.id}`);
+      return next(new Error('Authentication error: No token provided'));
+    }
+
+    // 验证JWT token
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // 获取用户信息
+    const user = await findUserByUsername(decoded.username, dbConnection.type, dbConnection.pool);
+    if (!user) {
+      console.log(`Socket连接被拒绝: 用户不存在, Username: ${decoded.username}`);
+      return next(new Error('Authentication error: User not found'));
+    }
+
+    // 将用户信息附加到socket
+    socket.userId = decoded.userId;
+    socket.username = decoded.username;
+    socket.userInfo = {
+      userId: user.id,
+      username: user.username,
+      nickname: user.nickname
+    };
+
+    console.log(`Socket认证成功: ${decoded.username}, Socket ID: ${socket.id}`);
+    next();
+  } catch (error) {
+    console.log(`Socket连接被拒绝: JWT验证失败, Socket ID: ${socket.id}, Error: ${error.message}`);
+    next(new Error('Authentication error: Invalid token'));
+  }
+};
+
+// WebSocket连接处理
+io.use(authenticateSocket);
+
+io.on('connection', (socket) => {
+  console.log(`用户已连接 WebSocket, socket id: ${socket.id}, 用户: ${socket.username}`);
+
+  // 创建房间事件
+  socket.on('create_room', () => {
+    try {
+      const room = gameRoomManager.createRoom(socket.id, socket.userInfo);
+      
+      // 让客户端加入Socket.IO房间
+      socket.join(room.id);
+      
+      // 向创建者发送房间信息
+      socket.emit('room_created', {
+        success: true,
+        room: room,
+        message: `房间 ${room.id} 创建成功`
+      });
+
+      console.log(`房间创建成功: ${room.id}, 创建者: ${socket.username}`);
+    } catch (error) {
+      console.error(`创建房间失败: ${error.message}`);
+      socket.emit('room_created', {
+        success: false,
+        message: '创建房间失败，请稍后重试'
+      });
+    }
+  });
+
+  // 加入房间事件
+  socket.on('join_room', (data) => {
+    try {
+      const { roomId } = data;
+      
+      if (!roomId) {
+        socket.emit('room_joined', {
+          success: false,
+          message: '房间ID不能为空'
+        });
+        return;
+      }
+
+      const result = gameRoomManager.joinRoom(roomId, socket.id, socket.userInfo);
+      
+      if (result.success) {
+        // 让客户端加入Socket.IO房间
+        socket.join(roomId);
+        
+        // 向加入者发送成功消息
+        socket.emit('room_joined', {
+          success: true,
+          room: result.room,
+          message: `成功加入房间 ${roomId}`
+        });
+
+        // 向房间内所有客户端广播玩家列表更新
+        io.to(roomId).emit('room_update', {
+          type: 'player_joined',
+          room: result.room,
+          players: result.room.players,
+          message: `${socket.userInfo.username} 加入了房间`
+        });
+
+        console.log(`玩家 ${socket.username} 成功加入房间: ${roomId}`);
+      } else {
+        socket.emit('room_joined', {
+          success: false,
+          message: result.message
+        });
+        console.log(`玩家 ${socket.username} 加入房间失败: ${result.message}`);
+      }
+    } catch (error) {
+      console.error(`加入房间失败: ${error.message}`);
+      socket.emit('room_joined', {
+        success: false,
+        message: '加入房间失败，请稍后重试'
+      });
+    }
+  });
+
+  // 获取房间列表事件
+  socket.on('get_rooms', () => {
+    try {
+      const rooms = gameRoomManager.getAllRooms();
+      socket.emit('rooms_list', {
+        success: true,
+        rooms: rooms
+      });
+    } catch (error) {
+      console.error(`获取房间列表失败: ${error.message}`);
+      socket.emit('rooms_list', {
+        success: false,
+        message: '获取房间列表失败'
+      });
+    }
+  });
+
+  // 断开连接事件
+  socket.on('disconnect', () => {
+    console.log(`用户断开连接: ${socket.username}, socket id: ${socket.id}`);
+    
+    // 处理玩家离开房间
+    const room = gameRoomManager.leaveRoom(socket.id);
+    if (room) {
+      // 向房间内剩余客户端广播更新
+      io.to(room.id).emit('room_update', {
+        type: 'player_left',
+        room: room,
+        players: room.players,
+        message: `${socket.username} 离开了房间`
+      });
+    }
+  });
+
+  // 发送当前房间列表给新连接的用户
+  const rooms = gameRoomManager.getAllRooms();
+  socket.emit('rooms_list', {
+    success: true,
+    rooms: rooms
+  });
+});
+
 // 启动服务器并初始化数据库
 async function startServer() {
   try {
@@ -214,18 +387,19 @@ async function startServer() {
     await createTables(dbConnection.type);
     console.log('数据表初始化完成');
     
-    // 启动Express服务器
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Backend server running on port ${PORT}`);
+    // 启动Express服务器 (with Socket.IO)
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`Backend server (Express + Socket.IO) running on port ${PORT}`);
       console.log(`访问 http://localhost:${PORT} 查看服务状态`);
       console.log(`数据库状态: http://localhost:${PORT}/db-status`);
+      console.log(`WebSocket服务已启用，支持游戏房间功能`);
     });
   } catch (error) {
     console.error('启动服务器失败:', error.message);
     console.log('服务器将继续运行，但没有数据库连接');
     
     // 即使数据库连接失败，仍然启动服务器
-    app.listen(PORT, '0.0.0.0', () => {
+    server.listen(PORT, '0.0.0.0', () => {
       console.log(`Backend server running on port ${PORT} (without database)`);
     });
   }

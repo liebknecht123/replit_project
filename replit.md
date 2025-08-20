@@ -19,18 +19,25 @@ Language preference: Chinese (中文) - Use Chinese when building and explaining
 - **Forms**: React Hook Form with Zod validation for type-safe form handling
 
 ### Backend Architecture
-- **API Server**: Node.js Express server running on port 3000 with basic JSON API
-- **Development Setup**: Basic Express server with minimal configuration for rapid development
-- **Main Endpoint**: GET / returns {"message": "Backend server is live!"}
-- **Configuration**: Simple server.js file with Express dependency, optimized for Replit deployment
-- **Build Process**: npm install for dependencies, node server.js for execution
+- **API Server**: Node.js Express server with TypeScript running on port 5000
+- **WebSocket**: Socket.IO integration for real-time communication with JWT authentication
+- **Authentication**: JWT-based user authentication system with login/logout APIs
+- **Game Rooms**: Complete game room management system with create/join/leave functionality
+- **Development Setup**: Modern TypeScript architecture with hot reloading
+- **Main Endpoints**: 
+  - POST /api/auth/login - User authentication
+  - WebSocket /ws - Real-time game room communications
+- **Configuration**: TypeScript with Drizzle ORM and PostgreSQL integration
 
 ### Database Architecture
-- **Database**: PostgreSQL with connection pooling (Replit managed)
-- **Connection**: MySQL2 and pg libraries for dual database support
-- **Schema Management**: SQL-based table creation with automatic initialization
-- **Tables**: Users table with id, username, password_hash, nickname, created_at fields
-- **Backup Option**: MariaDB support via Docker Compose for alternative deployment
+- **Database**: PostgreSQL with Neon serverless (Replit managed)
+- **ORM**: Drizzle ORM with TypeScript type safety
+- **Schema Management**: Drizzle-based schema with automatic migrations
+- **Tables**: 
+  - users: id, username, password_hash, nickname, created_at
+  - game_rooms: room management with host, players, status
+  - game_room_players: player-room relationships with join tracking
+- **Connection**: Neon PostgreSQL with connection pooling
 
 ### Build System
 - **Monorepo Structure**: Single package.json with shared dependencies across all services
@@ -38,13 +45,14 @@ Language preference: Chinese (中文) - Use Chinese when building and explaining
 - **Production Build**: Separate build processes for client (Vite) and server (esbuild)
 - **Asset Management**: Shared assets directory with proper aliasing
 
-### Service Management
-- **Multi-Service Architecture**: Backend API (port 3000), Frontend client (port 5000), Admin dashboard, and Godot game client
-- **Backend Service**: Successfully running with Express server providing JSON API response
-- **Build Process**: npm install for dependency management, node server.js for service execution
-- **Current Status**: Backend service operational and responding to API requests
-- **Startup Issue Fixed**: Created dedicated start-backend.sh script to ensure backend-only startup
-- **Authentication System**: Implemented complete user registration and login with JWT tokens
+### Service Management  
+- **Unified Architecture**: Single TypeScript server (port 5000) serving both API and WebSocket
+- **Real-time Features**: Socket.IO WebSocket server with JWT authentication middleware
+- **Game Room System**: Complete room management with create, join, leave, and real-time updates
+- **Build Process**: npm run dev for development with TypeScript hot reloading
+- **Current Status**: Full-stack application operational with WebSocket game rooms
+- **Authentication System**: JWT-based login with secure WebSocket authentication
+- **Database Integration**: Drizzle ORM with PostgreSQL for persistent room and user data
 
 ## External Dependencies
 

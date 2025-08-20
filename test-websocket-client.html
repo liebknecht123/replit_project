@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket游戏房间测试客户端</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section h3 {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+        }
+        input, button {
+            padding: 8px 12px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .room-list {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            min-height: 150px;
+        }
+        .room-item {
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .player-list {
+            background-color: #e9ecef;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket 游戏房间测试客户端</h1>
+    
+    <div class="container">
+        <div class="section">
+            <h3>连接状态</h3>
+            <div id="connectionStatus" class="status disconnected">未连接</div>
+            
+            <h3>用户认证</h3>
+            <div>
+                <input type="text" id="username" placeholder="用户名" value="testuser">
+                <input type="password" id="password" placeholder="密码" value="testpass">
+                <button id="loginBtn" onclick="login()">登录</button>
+            </div>
+            <div>
+                <input type="text" id="token" placeholder="JWT Token (自动填入)" readonly>
+                <button id="connectBtn" onclick="connect()" disabled>连接 WebSocket</button>
+                <button id="disconnectBtn" onclick="disconnect()" disabled>断开连接</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="section">
+            <h3>房间操作</h3>
+            <div>
+                <input type="text" id="roomName" placeholder="房间名称" value="测试房间">
+                <button id="createRoomBtn" onclick="createRoom()" disabled>创建房间</button>
+            </div>
+            <div>
+                <input type="text" id="joinRoomId" placeholder="房间ID">
+                <button id="joinRoomBtn" onclick="joinRoom()" disabled>加入房间</button>
+                <button id="refreshRoomsBtn" onclick="getRooms()" disabled>刷新房间列表</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="section">
+            <h3>房间列表</h3>
+            <div id="roomList" class="room-list">
+                <p>请先连接WebSocket...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="section">
+            <h3>当前房间信息</h3>
+            <div id="currentRoom">
+                <p>未加入任何房间</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="section">
+            <h3>消息日志</h3>
+            <div id="messageLog" class="log"></div>
+            <button onclick="clearLog()">清除日志</button>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        let currentToken = null;
+        let currentRoom = null;
+
+        function log(message) {
+            const now = new Date().toLocaleTimeString();
+            const logDiv = document.getElementById('messageLog');
+            logDiv.innerHTML += `<div>[${now}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('messageLog').innerHTML = '';
+        }
+
+        function updateStatus(connected) {
+            const statusDiv = document.getElementById('connectionStatus');
+            if (connected) {
+                statusDiv.textContent = '已连接';
+                statusDiv.className = 'status connected';
+            } else {
+                statusDiv.textContent = '未连接';
+                statusDiv.className = 'status disconnected';
+            }
+            
+            // 更新按钮状态
+            document.getElementById('connectBtn').disabled = connected || !currentToken;
+            document.getElementById('disconnectBtn').disabled = !connected;
+            document.getElementById('createRoomBtn').disabled = !connected;
+            document.getElementById('joinRoomBtn').disabled = !connected;
+            document.getElementById('refreshRoomsBtn').disabled = !connected;
+        }
+
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                alert('请输入用户名和密码');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentToken = result.data.token;
+                    document.getElementById('token').value = currentToken;
+                    document.getElementById('connectBtn').disabled = false;
+                    log(`✅ 登录成功: ${result.data.user.username}`);
+                } else {
+                    log(`❌ 登录失败: ${result.message}`);
+                    alert(`登录失败: ${result.message}`);
+                }
+            } catch (error) {
+                log(`❌ 登录请求错误: ${error.message}`);
+                alert(`登录请求错误: ${error.message}`);
+            }
+        }
+
+        function connect() {
+            if (!currentToken) {
+                alert('请先登录获取Token');
+                return;
+            }
+
+            const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            log(`🔗 尝试连接WebSocket: ${wsUrl}`);
+            
+            socket = new WebSocket(wsUrl);
+            
+            socket.onopen = function() {
+                log('✅ WebSocket连接已建立，发送认证信息...');
+                socket.send(JSON.stringify({
+                    type: 'auth',
+                    token: currentToken
+                }));
+            };
+
+            socket.onmessage = function(event) {
+                try {
+                    const message = JSON.parse(event.data);
+                    handleMessage(message);
+                } catch (error) {
+                    log(`📨 收到消息: ${event.data}`);
+                }
+            };
+
+            socket.onclose = function(event) {
+                log(`❌ WebSocket连接已关闭 (code: ${event.code}, reason: ${event.reason})`);
+                updateStatus(false);
+                socket = null;
+            };
+
+            socket.onerror = function(error) {
+                log(`❌ WebSocket错误: ${error}`);
+            };
+
+            // Socket.IO 风格的连接
+            const ioSocket = io('/ws', {
+                auth: {
+                    token: currentToken
+                }
+            });
+
+            socket = ioSocket;
+
+            ioSocket.on('connect', function() {
+                log('✅ Socket.IO连接成功');
+                updateStatus(true);
+            });
+
+            ioSocket.on('disconnect', function() {
+                log('❌ Socket.IO连接断开');
+                updateStatus(false);
+            });
+
+            ioSocket.on('rooms_list', function(data) {
+                log(`📋 收到房间列表: ${JSON.stringify(data)}`);
+                displayRooms(data.rooms || []);
+            });
+
+            ioSocket.on('room_created', function(data) {
+                log(`🏠 房间创建响应: ${JSON.stringify(data)}`);
+                if (data.success) {
+                    currentRoom = data.room;
+                    updateCurrentRoomDisplay();
+                }
+            });
+
+            ioSocket.on('room_joined', function(data) {
+                log(`🚪 加入房间响应: ${JSON.stringify(data)}`);
+                if (data.success) {
+                    currentRoom = data.room;
+                    updateCurrentRoomDisplay();
+                }
+            });
+
+            ioSocket.on('room_update', function(data) {
+                log(`🔄 房间更新: ${JSON.stringify(data)}`);
+                if (data.room) {
+                    currentRoom = data.room;
+                    updateCurrentRoomDisplay();
+                }
+            });
+
+            ioSocket.on('connect_error', function(error) {
+                log(`❌ Socket.IO连接错误: ${error.message}`);
+            });
+        }
+
+        function handleMessage(message) {
+            log(`📨 收到消息: ${JSON.stringify(message)}`);
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+                updateStatus(false);
+                log('🔌 主动断开连接');
+            }
+        }
+
+        function createRoom() {
+            if (!socket || !socket.connected) {
+                alert('请先连接WebSocket');
+                return;
+            }
+
+            const roomName = document.getElementById('roomName').value || '新房间';
+            
+            log(`🏠 创建房间: ${roomName}`);
+            socket.emit('create_room', { name: roomName });
+        }
+
+        function joinRoom() {
+            if (!socket || !socket.connected) {
+                alert('请先连接WebSocket');
+                return;
+            }
+
+            const roomId = document.getElementById('joinRoomId').value;
+            if (!roomId) {
+                alert('请输入房间ID');
+                return;
+            }
+
+            log(`🚪 加入房间: ${roomId}`);
+            socket.emit('join_room', { roomId });
+        }
+
+        function getRooms() {
+            if (!socket || !socket.connected) {
+                alert('请先连接WebSocket');
+                return;
+            }
+
+            log('📋 请求房间列表');
+            socket.emit('get_rooms');
+        }
+
+        function displayRooms(rooms) {
+            const roomListDiv = document.getElementById('roomList');
+            
+            if (rooms.length === 0) {
+                roomListDiv.innerHTML = '<p>暂无房间</p>';
+                return;
+            }
+
+            let html = '';
+            rooms.forEach(room => {
+                html += `
+                    <div class="room-item">
+                        <div>
+                            <strong>${room.name}</strong> (${room.id})<br>
+                            <small>房主: ${room.host} | 人数: ${room.playerCount}/${room.maxPlayers} | 状态: ${room.status}</small>
+                        </div>
+                        <button onclick="quickJoinRoom('${room.id}')">快速加入</button>
+                    </div>
+                `;
+            });
+            
+            roomListDiv.innerHTML = html;
+        }
+
+        function quickJoinRoom(roomId) {
+            document.getElementById('joinRoomId').value = roomId;
+            joinRoom();
+        }
+
+        function updateCurrentRoomDisplay() {
+            const currentRoomDiv = document.getElementById('currentRoom');
+            
+            if (!currentRoom) {
+                currentRoomDiv.innerHTML = '<p>未加入任何房间</p>';
+                return;
+            }
+
+            let playersHtml = '';
+            if (currentRoom.players && currentRoom.players.length > 0) {
+                playersHtml = '<div class="player-list"><strong>玩家列表:</strong><br>';
+                currentRoom.players.forEach(player => {
+                    const hostBadge = player.isHost ? ' (房主)' : '';
+                    playersHtml += `• ${player.username}${hostBadge}<br>`;
+                });
+                playersHtml += '</div>';
+            }
+
+            currentRoomDiv.innerHTML = `
+                <h4>当前房间: ${currentRoom.name}</h4>
+                <p><strong>房间ID:</strong> ${currentRoom.id}</p>
+                <p><strong>状态:</strong> ${currentRoom.status}</p>
+                <p><strong>最大人数:</strong> ${currentRoom.maxPlayers}</p>
+                <p><strong>当前人数:</strong> ${currentRoom.players ? currentRoom.players.length : 0}</p>
+                ${playersHtml}
+            `;
+        }
+
+        // 页面加载时的初始化
+        updateStatus(false);
+    </script>
+
+    <!-- Socket.IO 客户端库 -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</body>
+</html>
