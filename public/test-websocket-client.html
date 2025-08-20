@@ -232,13 +232,16 @@
             }
 
             log(`🔗 尝试连接Socket.IO WebSocket服务器...`);
+            log(`🔑 使用Token: ${currentToken.substring(0, 20)}...`);
             
             // Socket.IO 连接
             const ioSocket = io('/ws', {
                 auth: {
                     token: currentToken
                 },
-                transports: ['websocket', 'polling'] // 允许降级到polling
+                transports: ['websocket', 'polling'], // 允许降级到polling
+                timeout: 10000, // 10秒连接超时
+                forceNew: true  // 强制创建新连接
             });
 
             socket = ioSocket;
@@ -284,12 +287,27 @@
 
             ioSocket.on('connect_error', function(error) {
                 log(`❌ Socket.IO连接错误: ${error.message}`);
+                log(`❌ 错误详情: ${JSON.stringify(error)}`);
                 updateStatus(false);
             });
 
             ioSocket.on('disconnect', function(reason) {
                 log(`🔌 Socket.IO断开连接，原因: ${reason}`);
                 updateStatus(false);
+            });
+
+            // 添加更多调试事件
+            ioSocket.on('connecting', function() {
+                log(`🔄 Socket.IO正在连接...`);
+            });
+
+            ioSocket.on('reconnect', function() {
+                log(`🔄 Socket.IO已重连`);
+                updateStatus(true);
+            });
+
+            ioSocket.on('reconnect_error', function(error) {
+                log(`❌ Socket.IO重连失败: ${error.message}`);
             });
         }
 
