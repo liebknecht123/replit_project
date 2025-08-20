@@ -234,8 +234,9 @@
             log(`🔗 尝试连接Socket.IO WebSocket服务器...`);
             log(`🔑 使用Token: ${currentToken.substring(0, 20)}...`);
             
-            // Socket.IO 连接
-            const ioSocket = io('/ws', {
+            // Socket.IO 连接 - 正确配置路径
+            const ioSocket = io({
+                path: '/ws/socket.io/',  // 正确的Socket.IO路径
                 auth: {
                     token: currentToken
                 },
