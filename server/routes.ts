@@ -73,6 +73,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 用户注册路由
+  app.post('/api/auth/register', async (req, res) => {
+    const { username, password, nickname } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({ 
+        success: false, 
+        message: '用户名和密码不能为空' 
+      });
+    }
+
+    try {
+      // 检查用户是否已存在
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(409).json({ 
+          success: false, 
+          message: '用户名已存在' 
+        });
+      }
+
+      // 创建新用户
+      const newUser = await storage.createUser({
+        username,
+        password_hash: password, // 简单实现，实际项目应该使用bcrypt
+        nickname: nickname || username
+      });
+
+      res.json({
+        success: true,
+        message: '用户注册成功',
+        data: {
+          user: {
+            id: newUser.id,
+            username: newUser.username,
+            nickname: newUser.nickname
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('注册错误:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: '服务器内部错误' 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
 
   // 设置Socket.IO服务器
@@ -261,7 +310,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           // 私密发送每个玩家的手牌
-          for (const [playerId, hand] of result.gameState.hands.entries()) {
+          for (const [playerId, hand] of Array.from(result.gameState.hands.entries())) {
             const playerSocketId = gameRoomManager.getUserSocket(playerId);
             if (playerSocketId) {
               io.to(playerSocketId).emit('your_hand', {
