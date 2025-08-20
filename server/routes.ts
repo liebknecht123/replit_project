@@ -81,7 +81,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       origin: "*",
       methods: ["GET", "POST"]
     },
-    path: '/ws'  // 使用 /ws 路径避免与Vite HMR冲突
+    path: '/ws',  // 使用 /ws 路径避免与Vite HMR冲突
+    allowEIO3: true  // 允许Engine.IO v3客户端连接到v4服务器
   });
 
   // JWT认证中间件 - 优雅处理认证错误
