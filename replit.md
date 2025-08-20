@@ -19,11 +19,11 @@ Language preference: Chinese (中文) - Use Chinese when building and explaining
 - **Forms**: React Hook Form with Zod validation for type-safe form handling
 
 ### Backend Architecture
-- **API Server**: Node.js Express server with TypeScript support
-- **Development Setup**: Hot-reloading with Vite middleware integration for seamless development
-- **Data Layer**: Drizzle ORM with PostgreSQL database support
-- **Storage Interface**: Abstracted storage layer with in-memory implementation for development and database implementation for production
-- **Session Management**: Express session handling with PostgreSQL session store
+- **API Server**: Node.js Express server running on port 3000 with basic JSON API
+- **Development Setup**: Basic Express server with minimal configuration for rapid development
+- **Main Endpoint**: GET / returns {"message": "Backend server is live!"}
+- **Configuration**: Simple server.js file with Express dependency, optimized for Replit deployment
+- **Build Process**: npm install for dependencies, node server.js for execution
 
 ### Database Architecture
 - **ORM**: Drizzle with PostgreSQL dialect
@@ -38,10 +38,10 @@ Language preference: Chinese (中文) - Use Chinese when building and explaining
 - **Asset Management**: Shared assets directory with proper aliasing
 
 ### Service Management
-- **Multi-Service Architecture**: Backend API, Frontend client, Admin dashboard, and Godot game client
-- **Health Monitoring**: Built-in health check endpoints and service status tracking
-- **Build Management**: Automated build status tracking and deployment information
-- **Analytics**: Project statistics including test results, coverage metrics, and build statuses
+- **Multi-Service Architecture**: Backend API (port 3000), Frontend client (port 5000), Admin dashboard, and Godot game client
+- **Backend Service**: Successfully running with Express server providing JSON API response
+- **Build Process**: npm install for dependency management, node server.js for service execution
+- **Current Status**: Backend service operational and responding to API requests
 
 ## External Dependencies
 
