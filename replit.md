@@ -43,6 +43,7 @@ Language preference: Chinese (中文) - Use Chinese when building and explaining
 - **Backend Service**: Successfully running with Express server providing JSON API response
 - **Build Process**: npm install for dependency management, node server.js for service execution
 - **Current Status**: Backend service operational and responding to API requests
+- **Startup Issue Fixed**: Created dedicated start-backend.sh script to ensure backend-only startup
 
 ## External Dependencies
 
