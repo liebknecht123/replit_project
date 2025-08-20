@@ -84,24 +84,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     path: '/ws'  // 使用 /ws 路径避免与Vite HMR冲突
   });
 
-  // JWT认证中间件
+  // JWT认证中间件 - 优雅处理认证错误
   io.use(async (socket: any, next) => {
     try {
-      const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
+      // 尝试从多个位置获取token
+      const token = socket.handshake.auth?.token || 
+                   socket.handshake.headers?.authorization?.replace('Bearer ', '') ||
+                   socket.handshake.query?.token;
       
       if (!token) {
-        console.log(`Socket连接被拒绝: 缺少JWT token, Socket ID: ${socket.id}`);
-        return next(new Error('Authentication error: No token provided'));
+        console.log(`Socket连接被拒绝: 缺少JWT token, Socket ID: ${socket.id}, IP: ${socket.handshake.address}`);
+        return next(new Error('AUTHENTICATION_FAILED'));
       }
 
       // 验证JWT token
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      let decoded;
+      try {
+        decoded = jwt.verify(token, JWT_SECRET) as any;
+      } catch (jwtError: any) {
+        console.log(`Socket连接被拒绝: JWT无效, Socket ID: ${socket.id}, Error: ${jwtError.message}`);
+        return next(new Error('INVALID_TOKEN'));
+      }
       
       // 获取用户信息
-      const [user] = await db.select().from(users).where(eq(users.id, decoded.userId));
+      let user;
+      try {
+        [user] = await db.select().from(users).where(eq(users.id, decoded.userId));
+      } catch (dbError: any) {
+        console.log(`Socket连接被拒绝: 数据库查询失败, Socket ID: ${socket.id}, Error: ${dbError.message}`);
+        return next(new Error('DATABASE_ERROR'));
+      }
+
       if (!user) {
-        console.log(`Socket连接被拒绝: 用户不存在, UserID: ${decoded.userId}`);
-        return next(new Error('Authentication error: User not found'));
+        console.log(`Socket连接被拒绝: 用户不存在, UserID: ${decoded.userId}, Socket ID: ${socket.id}`);
+        return next(new Error('USER_NOT_FOUND'));
       }
 
       // 将用户信息附加到socket
@@ -109,11 +125,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       socket.username = decoded.username;
       socket.userInfo = user;
 
-      console.log(`Socket认证成功: ${decoded.username}, Socket ID: ${socket.id}`);
-      next();
+      console.log(`✅ Socket认证成功: ${decoded.username} (ID: ${decoded.userId}), Socket ID: ${socket.id}`);
+      next(); // 成功认证，允许连接
     } catch (error: any) {
-      console.log(`Socket连接被拒绝: JWT验证失败, Socket ID: ${socket.id}, Error: ${error.message}`);
-      next(new Error('Authentication error: Invalid token'));
+      console.log(`❌ Socket连接被拒绝: 意外错误, Socket ID: ${socket.id}, Error: ${error.message}`);
+      next(new Error('INTERNAL_ERROR'));
     }
   });
 

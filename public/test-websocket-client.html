@@ -231,45 +231,14 @@
                 return;
             }
 
-            const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            log(`🔗 尝试连接Socket.IO WebSocket服务器...`);
             
-            log(`🔗 尝试连接WebSocket: ${wsUrl}`);
-            
-            socket = new WebSocket(wsUrl);
-            
-            socket.onopen = function() {
-                log('✅ WebSocket连接已建立，发送认证信息...');
-                socket.send(JSON.stringify({
-                    type: 'auth',
-                    token: currentToken
-                }));
-            };
-
-            socket.onmessage = function(event) {
-                try {
-                    const message = JSON.parse(event.data);
-                    handleMessage(message);
-                } catch (error) {
-                    log(`📨 收到消息: ${event.data}`);
-                }
-            };
-
-            socket.onclose = function(event) {
-                log(`❌ WebSocket连接已关闭 (code: ${event.code}, reason: ${event.reason})`);
-                updateStatus(false);
-                socket = null;
-            };
-
-            socket.onerror = function(error) {
-                log(`❌ WebSocket错误: ${error}`);
-            };
-
-            // Socket.IO 风格的连接
+            // Socket.IO 连接
             const ioSocket = io('/ws', {
                 auth: {
                     token: currentToken
-                }
+                },
+                transports: ['websocket', 'polling'] // 允许降级到polling
             });
 
             socket = ioSocket;
@@ -315,6 +284,12 @@
 
             ioSocket.on('connect_error', function(error) {
                 log(`❌ Socket.IO连接错误: ${error.message}`);
+                updateStatus(false);
+            });
+
+            ioSocket.on('disconnect', function(reason) {
+                log(`🔌 Socket.IO断开连接，原因: ${reason}`);
+                updateStatus(false);
             });
         }
 
