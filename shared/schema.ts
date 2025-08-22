@@ -57,6 +57,7 @@ export const gameRoomPlayers = pgTable("game_room_players", {
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password_hash: true,
+  nickname: true,
 });
 
 export const insertServiceSchema = createInsertSchema(services).omit({

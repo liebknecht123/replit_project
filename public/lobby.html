@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebSocket游戏房间测试客户端</title>
+    <title>掼蛋游戏大厅</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -94,23 +94,15 @@
     </style>
 </head>
 <body>
-    <h1>WebSocket 游戏房间测试客户端</h1>
+    <h1>🃏 掼蛋游戏大厅</h1>
     
     <div class="container">
         <div class="section">
             <h3>连接状态</h3>
-            <div id="connectionStatus" class="status disconnected">未连接</div>
-            
-            <h3>用户认证</h3>
-            <div>
-                <input type="text" id="username" placeholder="用户名" value="testuser">
-                <input type="password" id="password" placeholder="密码" value="testpass">
-                <button id="loginBtn" onclick="login()">登录</button>
-            </div>
-            <div>
-                <input type="text" id="token" placeholder="JWT Token (自动填入)" readonly>
-                <button id="connectBtn" onclick="connect()" disabled>连接 WebSocket</button>
-                <button id="disconnectBtn" onclick="disconnect()" disabled>断开连接</button>
+            <div id="connectionStatus" class="status disconnected">正在连接...</div>
+            <div id="userInfo" style="margin-top: 10px; padding: 10px; background: #e9ecef; border-radius: 4px;"></div>
+            <div style="margin-top: 10px;">
+                <button id="disconnectBtn" onclick="logout()" disabled>退出登录</button>
             </div>
         </div>
     </div>
@@ -197,61 +189,50 @@
         function updateStatus(connected) {
             const statusDiv = document.getElementById('connectionStatus');
             if (connected) {
-                statusDiv.textContent = '已连接';
+                statusDiv.textContent = '🟢 已连接到游戏服务器';
                 statusDiv.className = 'status connected';
             } else {
-                statusDiv.textContent = '未连接';
+                statusDiv.textContent = '🔴 未连接';
                 statusDiv.className = 'status disconnected';
             }
             
             // 更新按钮状态
-            document.getElementById('connectBtn').disabled = connected || !currentToken;
             document.getElementById('disconnectBtn').disabled = !connected;
             document.getElementById('createRoomBtn').disabled = !connected;
             document.getElementById('joinRoomBtn').disabled = !connected;
             document.getElementById('refreshRoomsBtn').disabled = !connected;
-            document.getElementById('startGameBtn').disabled = !connected || !currentRoom;
+            
+            // 根据房间状态和人数动态控制开始游戏按钮
+            updateStartGameButton();
             document.getElementById('playCardsBtn').disabled = !connected || !currentRoom;
         }
-
-        async function login() {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
+        
+        // 动态更新开始游戏按钮状态
+        function updateStartGameButton() {
+            const startGameBtn = document.getElementById('startGameBtn');
+            const connected = socket && socket.connected;
             
-            if (!username || !password) {
-                alert('请输入用户名和密码');
+            if (!connected || !currentRoom) {
+                startGameBtn.disabled = true;
+                startGameBtn.textContent = '开始游戏';
                 return;
             }
-
-            try {
-                const response = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ username, password })
-                });
-
-                const result = await response.json();
-                
-                if (result.success) {
-                    currentToken = result.data.token;
-                    document.getElementById('token').value = currentToken;
-                    document.getElementById('connectBtn').disabled = false;
-                    log(`✅ 登录成功: ${result.data.user.username}`);
-                } else {
-                    log(`❌ 登录失败: ${result.message}`);
-                    alert(`登录失败: ${result.message}`);
-                }
-            } catch (error) {
-                log(`❌ 登录请求错误: ${error.message}`);
-                alert(`登录请求错误: ${error.message}`);
+            
+            const playerCount = currentRoom.players ? currentRoom.players.length : 0;
+            if (playerCount >= 4) {
+                startGameBtn.disabled = false;
+                startGameBtn.textContent = `开始游戏 (${playerCount}/4人)`;
+            } else {
+                startGameBtn.disabled = true;
+                startGameBtn.textContent = `等待玩家 (${playerCount}/4人)`;
             }
         }
+
 
         function connect() {
             if (!currentToken) {
-                alert('请先登录获取Token');
+                log('❌ 没有找到登录Token，正在重定向到登录页...');
+                window.location.href = '/login.html';
                 return;
             }
 
@@ -307,6 +288,10 @@
                 if (data.room) {
                     currentRoom = data.room;
                     updateCurrentRoomDisplay();
+                    // 动态更新开始游戏按钮状态
+                    updateStartGameButton();
+                    // 刷新房间列表
+                    getRooms();
                 }
             });
 
@@ -588,6 +573,48 @@
         }
 
         // 页面加载时的初始化
+        window.addEventListener('DOMContentLoaded', function() {
+            checkAuthAndConnect();
+        });
+        
+        // 检查认证状态并自动连接
+        function checkAuthAndConnect() {
+            const token = localStorage.getItem('jwt_token');
+            const userInfo = localStorage.getItem('user_info');
+            
+            if (!token || !userInfo) {
+                // 没有登录信息，重定向到登录页
+                window.location.href = '/login.html';
+                return;
+            }
+            
+            try {
+                const user = JSON.parse(userInfo);
+                document.getElementById('userInfo').innerHTML = `
+                    <strong>欢迎，${user.username}！</strong> (ID: ${user.id})
+                `;
+                
+                currentToken = token;
+                // 自动连接WebSocket
+                connect();
+            } catch (error) {
+                console.error('解析用户信息失败:', error);
+                localStorage.removeItem('jwt_token');
+                localStorage.removeItem('user_info');
+                window.location.href = '/login.html';
+            }
+        }
+        
+        // 退出登录
+        function logout() {
+            if (socket) {
+                socket.disconnect();
+            }
+            localStorage.removeItem('jwt_token');
+            localStorage.removeItem('user_info');
+            window.location.href = '/login.html';
+        }
+        
         updateStatus(false);
     </script>
 

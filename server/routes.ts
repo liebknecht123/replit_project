@@ -253,11 +253,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: `成功加入房间 ${roomId}`
           });
 
-          // 向房间内所有客户端广播玩家列表更新
+          // 向房间内所有客户端（包括刚加入的玩家）广播完整房间状态更新
           io.to(roomId).emit('room_update', {
             type: 'player_joined',
+            roomId: result.room!.id,
             room: result.room,
             players: result.room!.players,
+            status: result.room!.status,
+            hostUserId: result.room!.hostUserId,
+            playerCount: result.room!.players.length,
+            maxPlayers: result.room!.maxPlayers,
             message: `${socket.userInfo.username} 加入了房间`
           });
 
@@ -468,11 +473,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 处理玩家离开房间
       const room = await gameRoomManager.leaveRoom(socket.id);
       if (room) {
-        // 向房间内剩余客户端广播更新
+        // 向房间内剩余客户端广播完整房间状态更新
         io.to(room.id).emit('room_update', {
           type: 'player_left',
+          roomId: room.id,
           room: room,
           players: room.players,
+          status: room.status,
+          hostUserId: room.hostUserId,
+          playerCount: room.players.length,
+          maxPlayers: room.maxPlayers,
           message: `${socket.username} 离开了房间`
         });
       }

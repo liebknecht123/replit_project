@@ -3,117 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>掼蛋游戏 - 用户登录</title>
+    <title>掼蛋游戏 - 登录</title>
     <style>
-        * {
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Microsoft YaHei', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
         }
         
-        .container {
+        .login-container {
             background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
             width: 100%;
             max-width: 400px;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            color: #333;
         }
         
         .title {
-            text-align: center;
+            font-size: 1.8em;
             color: #333;
             margin-bottom: 30px;
-            font-size: 28px;
-            font-weight: bold;
+            font-weight: 300;
         }
         
         .form-group {
             margin-bottom: 20px;
+            text-align: left;
         }
         
-        label {
+        .form-group label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
             color: #555;
             font-weight: 500;
         }
         
-        input {
+        .form-group input {
             width: 100%;
-            padding: 12px 16px;
+            padding: 12px 15px;
             border: 2px solid #e1e5e9;
-            border-radius: 10px;
+            border-radius: 8px;
             font-size: 16px;
-            transition: border-color 0.3s;
+            transition: border-color 0.3s ease;
+            box-sizing: border-box;
         }
         
-        input:focus {
+        .form-group input:focus {
             outline: none;
             border-color: #667eea;
         }
         
-        button {
+        .login-btn {
             width: 100%;
-            padding: 14px;
+            padding: 12px 15px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
             font-size: 16px;
-            font-weight: bold;
+            font-weight: 500;
             cursor: pointer;
-            transition: transform 0.2s;
-            margin-bottom: 10px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin-top: 10px;
         }
         
-        button:hover {
-            transform: translateY(-2px);
+        .login-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
         }
         
-        button:disabled {
-            opacity: 0.6;
+        .login-btn:disabled {
+            background: #ccc;
             cursor: not-allowed;
             transform: none;
+            box-shadow: none;
         }
         
-        .game-button {
-            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-            display: none;
-        }
-        
-        .message {
-            margin-top: 20px;
-            padding: 12px;
-            border-radius: 8px;
-            text-align: center;
-            display: none;
-        }
-        
-        .success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .error {
-            background: #f8d7da;
+        .error-message {
+            background-color: #f8d7da;
             color: #721c24;
-            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .loading {
+            display: none;
+            margin-top: 15px;
+            color: #667eea;
         }
         
         .register-link {
-            text-align: center;
             margin-top: 20px;
+            color: #666;
+            font-size: 14px;
         }
         
         .register-link a {
@@ -127,109 +124,110 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1 class="title">🃏 掼蛋游戏登录</h1>
+    <div class="login-container">
+        <div class="logo">🃏</div>
+        <h1 class="title">掼蛋游戏</h1>
         
         <form id="loginForm">
             <div class="form-group">
                 <label for="username">用户名</label>
-                <input type="text" id="username" name="username" required 
-                       placeholder="请输入用户名">
+                <input type="text" id="username" name="username" required autocomplete="username" placeholder="请输入用户名">
             </div>
             
             <div class="form-group">
                 <label for="password">密码</label>
-                <input type="password" id="password" name="password" required 
-                       placeholder="请输入密码">
+                <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="请输入密码">
             </div>
             
-            <button type="submit" id="submitBtn">立即登录</button>
-            <button type="button" id="gameBtn" class="game-button" onclick="window.location.href='test-websocket-client.html'">
-                进入游戏大厅
-            </button>
+            <button type="submit" class="login-btn" id="loginBtn">登录</button>
+            
+            <div class="loading" id="loading">
+                正在登录，请稍候...
+            </div>
+            
+            <div class="error-message" id="errorMessage"></div>
         </form>
         
-        <div id="message" class="message"></div>
-        
         <div class="register-link">
-            没有账户？<a href="register.html">立即注册</a>
+            没有账号？<a href="/register.html">立即注册</a>
         </div>
     </div>
 
     <script>
-        const form = document.getElementById('loginForm');
-        const submitBtn = document.getElementById('submitBtn');
-        const gameBtn = document.getElementById('gameBtn');
-        const messageDiv = document.getElementById('message');
+        // 页面加载时检查是否已经登录
+        window.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('jwt_token');
+            if (token) {
+                // 如果已有token，直接跳转到游戏大厅
+                window.location.href = '/lobby.html';
+                return;
+            }
+        });
 
-        // 检查是否已经登录
-        const token = localStorage.getItem('token');
-        if (token) {
-            showMessage('您已登录，可以直接进入游戏', 'success');
-            gameBtn.style.display = 'block';
-        }
-
-        form.addEventListener('submit', async (e) => {
+        // 登录表单处理
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('loginBtn');
+            const loading = document.getElementById('loading');
+            const errorMessage = document.getElementById('errorMessage');
             
+            // 基本验证
             if (!username || !password) {
-                showMessage('请填写用户名和密码', 'error');
+                showError('请输入用户名和密码');
                 return;
             }
             
-            submitBtn.disabled = true;
-            submitBtn.textContent = '登录中...';
+            // 显示加载状态
+            loginBtn.disabled = true;
+            loading.style.display = 'block';
+            errorMessage.style.display = 'none';
             
             try {
                 const response = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        username,
-                        password
-                    }),
+                    body: JSON.stringify({ username, password })
                 });
                 
                 const result = await response.json();
                 
-                if (result.success) {
-                    // 保存登录信息
-                    localStorage.setItem('token', result.data.token);
-                    localStorage.setItem('user', JSON.stringify(result.data.user));
+                if (result.success && result.data && result.data.token) {
+                    // 登录成功，保存JWT Token到localStorage
+                    localStorage.setItem('jwt_token', result.data.token);
+                    localStorage.setItem('user_info', JSON.stringify({
+                        id: result.data.user.id,
+                        username: result.data.user.username
+                    }));
                     
-                    showMessage('登录成功！', 'success');
-                    gameBtn.style.display = 'block';
-                    
+                    // 短暂延迟后跳转到游戏大厅
                     setTimeout(() => {
-                        window.location.href = 'test-websocket-client.html';
-                    }, 1500);
+                        window.location.href = '/lobby.html';
+                    }, 500);
+                    
                 } else {
-                    showMessage(result.message || '登录失败，请重试', 'error');
+                    // 登录失败
+                    showError(result.message || '登录失败，请检查用户名和密码');
                 }
+                
             } catch (error) {
-                console.error('登录请求失败:', error);
-                showMessage('网络错误，请检查连接后重试', 'error');
+                console.error('登录请求错误:', error);
+                showError('网络错误，请稍后重试');
             } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = '立即登录';
+                // 恢复按钮状态
+                loginBtn.disabled = false;
+                loading.style.display = 'none';
             }
         });
-
-        function showMessage(text, type) {
-            messageDiv.textContent = text;
-            messageDiv.className = `message ${type}`;
-            messageDiv.style.display = 'block';
-            
-            if (type === 'error') {
-                setTimeout(() => {
-                    messageDiv.style.display = 'none';
-                }, 5000);
-            }
+        
+        function showError(message) {
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
         }
     </script>
 </body>
