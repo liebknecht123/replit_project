@@ -219,12 +219,21 @@
             }
             
             const playerCount = currentRoom.players ? currentRoom.players.length : 0;
-            if (playerCount >= 4) {
-                startGameBtn.disabled = false;
-                startGameBtn.textContent = `开始游戏 (${playerCount}/4人)`;
+            const isPlaying = currentRoom.status === 'playing';
+            
+            if (isPlaying) {
+                startGameBtn.disabled = true;
+                startGameBtn.textContent = '游戏进行中...';
+                startGameBtn.style.display = 'none'; // 隐藏按钮
+            } else if (playerCount >= 4) {
+                startGameBtn.disabled = true;
+                startGameBtn.textContent = `满员自动开始 (${playerCount}/4人)`;
+                startGameBtn.style.backgroundColor = '#28a745'; // 绿色表示满员
             } else {
                 startGameBtn.disabled = true;
                 startGameBtn.textContent = `等待玩家 (${playerCount}/4人)`;
+                startGameBtn.style.backgroundColor = '#ccc'; // 灰色表示等待
+                startGameBtn.style.display = 'block'; // 显示按钮
             }
         }
 
@@ -292,6 +301,27 @@
                     updateStartGameButton();
                     // 刷新房间列表
                     getRooms();
+                }
+                
+                // 处理自动开始游戏的特殊消息
+                if (data.type === 'auto_game_started') {
+                    log(`🎮 ${data.message}`);
+                    // 显示自动开始的通知
+                    const notification = document.createElement('div');
+                    notification.style.cssText = `
+                        position: fixed; top: 20px; right: 20px;
+                        background: #28a745; color: white;
+                        padding: 15px 20px; border-radius: 8px;
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                        z-index: 1000; font-weight: bold;
+                    `;
+                    notification.textContent = '🎮 ' + data.message;
+                    document.body.appendChild(notification);
+                    
+                    // 3秒后自动移除通知
+                    setTimeout(() => {
+                        document.body.removeChild(notification);
+                    }, 3000);
                 }
             });
 

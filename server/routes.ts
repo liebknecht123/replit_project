@@ -267,6 +267,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           console.log(`玩家 ${socket.username} 成功加入房间: ${roomId}`);
+
+          // 检查房间是否满员，如果满员则自动开始游戏
+          if (result.room!.players.length >= result.room!.maxPlayers) {
+            console.log(`房间 ${roomId} 已满员，自动开始游戏...`);
+            
+            // 延迟1秒后自动开始游戏，给客户端时间处理房间更新
+            setTimeout(async () => {
+              const autoStartResult = await startGameForRoom(roomId);
+              if (autoStartResult.success) {
+                // 向房间内所有玩家广播满员自动开始的消息
+                io.to(roomId).emit('room_update', {
+                  type: 'auto_game_started',
+                  roomId: roomId,
+                  room: gameRoomManager.getRoom(roomId),
+                  message: '房间已满员，游戏自动开始！'
+                });
+              }
+            }, 1000);
+          }
         } else {
           socket.emit('room_joined', {
             success: false,
@@ -300,23 +319,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    // 开始游戏事件
-    socket.on('start_game', async (data: any) => {
+    // 开始游戏的封装函数
+    const startGameForRoom = async (roomId: string, initiatorUserId?: number) => {
       try {
-        const room = gameRoomManager.getPlayerRoom(socket.id);
-        if (!room) {
-          socket.emit('start_game_result', {
-            success: false,
-            message: '你不在任何房间中'
-          });
-          return;
-        }
-
-        const result = await gameRoomManager.startGame(room.id, socket.userId);
+        const result = await gameRoomManager.startGame(roomId, initiatorUserId || 0);
         
         if (result.success && result.gameState) {
           // 向房间内所有玩家广播游戏开始
-          io.to(room.id).emit('game_started', {
+          io.to(roomId).emit('game_started', {
             success: true,
             message: result.message,
             gameState: {
@@ -339,13 +349,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
 
-          console.log(`房间 ${room.id} 游戏开始！`);
+          console.log(`房间 ${roomId} 游戏自动开始！`);
+          return { success: true, message: result.message };
         } else {
+          console.error(`房间 ${roomId} 开始游戏失败: ${result.message}`);
+          return { success: false, message: result.message };
+        }
+      } catch (error: any) {
+        console.error(`房间 ${roomId} 开始游戏失败: ${error.message}`);
+        return { success: false, message: '开始游戏失败，请稍后重试' };
+      }
+    };
+
+    // 开始游戏事件
+    socket.on('start_game', async (data: any) => {
+      try {
+        const room = gameRoomManager.getPlayerRoom(socket.id);
+        if (!room) {
           socket.emit('start_game_result', {
             success: false,
-            message: result.message
+            message: '你不在任何房间中'
           });
+          return;
         }
+
+        const result = await startGameForRoom(room.id, socket.userId);
+        
+        socket.emit('start_game_result', {
+          success: result.success,
+          message: result.message
+        });
       } catch (error: any) {
         console.error(`开始游戏失败: ${error.message}`);
         socket.emit('start_game_result', {
