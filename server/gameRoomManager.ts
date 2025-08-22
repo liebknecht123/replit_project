@@ -344,17 +344,27 @@ export class GameRoomManager {
     }
     
     // 导入游戏逻辑
-    const { dealCards } = await import('./gameLogic');
+    const { dealCards, shufflePlayerOrder } = await import('./gameLogic');
     
     // 创建游戏状态
     const playerIds = room.players.map(p => p.userId);
     const hands = dealCards(playerIds.slice(0, 4)); // 确保最多4个玩家
     
+    // 在发牌逻辑之后，执行以下操作：
+    // 1. 获取房间内所有玩家的ID列表
+    const allPlayerIds = playerIds.slice(0, 4);
+    // 2. 随机打乱这个ID列表的顺序
+    const playOrder = shufflePlayerOrder(allPlayerIds);
+    // 3. 将currentPlayerIndex初始化为0
+    const currentPlayerIndex = 0;
+    
     const gameState: import('./gameLogic').GameState = {
       roomId: roomId,
-      players: playerIds.slice(0, 4),
+      players: allPlayerIds,
       hands: hands,
-      currentPlayer: playerIds[0], // 第一个玩家开始
+      currentPlayer: playOrder[currentPlayerIndex], // 使用playOrder[0]作为当前玩家
+      playOrder: playOrder, // 固定的玩家ID顺序
+      currentPlayerIndex: currentPlayerIndex, // 指向playOrder数组的当前回合索引
       lastPlay: null,
       tableCards: [],
       gamePhase: 'playing',
@@ -396,5 +406,27 @@ export class GameRoomManager {
   // 获取用户的Socket ID
   getUserSocket(userId: number): string | undefined {
     return this.userSockets.get(userId);
+  }
+
+  // 回合推进函数
+  advanceTurn(roomId: string): { success: boolean; currentPlayerId?: number; message?: string } {
+    const room = this.rooms.get(roomId);
+    
+    if (!room || !room.gameState) {
+      return { success: false, message: '房间或游戏状态不存在' };
+    }
+    
+    const gameState = room.gameState;
+    
+    // 将currentPlayerIndex加1，如果等于4就重置为0
+    gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % 4;
+    
+    // 更新当前玩家
+    gameState.currentPlayer = gameState.playOrder[gameState.currentPlayerIndex];
+    
+    return { 
+      success: true, 
+      currentPlayerId: gameState.currentPlayer 
+    };
   }
 }

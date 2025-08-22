@@ -121,6 +121,7 @@
             </div>
             <div>
                 <button id="startGameBtn" onclick="startGame()" disabled>开始游戏</button>
+                <button id="passTurnBtn" onclick="passTurn()" style="display: none; margin-left: 10px;" disabled>过牌</button>
                 <button id="playCardsBtn" onclick="playCards()" disabled>出牌测试</button>
             </div>
         </div>
@@ -207,6 +208,41 @@
             document.getElementById('playCardsBtn').disabled = !connected || !currentRoom;
         }
         
+        // 更新回合制按钮状态
+        function updateTurnBasedButtons() {
+            const startGameBtn = document.getElementById('startGameBtn');
+            const passTurnBtn = document.getElementById('passTurnBtn');
+            const currentUserInfo = getCurrentUserInfo();
+            
+            if (!currentUserInfo || !gameState) {
+                passTurnBtn.style.display = 'none';
+                return;
+            }
+
+            const isMyTurn = currentPlayerId && currentPlayerId == currentUserInfo.id;
+            const isGamePlaying = gameState && gameState.gamePhase === 'playing';
+
+            if (isGamePlaying) {
+                // 游戏进行中，显示过牌按钮
+                passTurnBtn.style.display = 'inline-block';
+                passTurnBtn.disabled = !isMyTurn;
+                passTurnBtn.textContent = isMyTurn ? '过牌' : '等待中...';
+                
+                // 隐藏开始游戏按钮
+                startGameBtn.style.display = 'none';
+            } else {
+                // 游戏未开始，隐藏过牌按钮
+                passTurnBtn.style.display = 'none';
+                startGameBtn.style.display = 'inline-block';
+            }
+        }
+
+        // 获取当前用户信息
+        function getCurrentUserInfo() {
+            const userInfoStr = localStorage.getItem('user_info');
+            return userInfoStr ? JSON.parse(userInfoStr) : null;
+        }
+
         // 动态更新开始游戏按钮状态
         function updateStartGameButton() {
             const startGameBtn = document.getElementById('startGameBtn');
@@ -299,6 +335,8 @@
                     updateCurrentRoomDisplay();
                     // 动态更新开始游戏按钮状态
                     updateStartGameButton();
+                    // 更新回合制按钮状态
+                    updateTurnBasedButtons();
                     // 刷新房间列表
                     getRooms();
                 }
@@ -353,7 +391,52 @@
             // 游戏相关事件
             ioSocket.on('game_started', function(data) {
                 log(`🎮 游戏开始: ${JSON.stringify(data)}`);
-                updateGameState(data);
+                
+                if (data.gameState) {
+                    gameState = data.gameState;
+                    currentPlayerId = data.gameState.currentPlayerId || data.gameState.playOrder[0];
+                    updateGameState(data);
+                    updateTurnBasedButtons(); // 更新回合制按钮状态
+                    
+                    log(`🎯 游戏玩家顺序: [${data.gameState.playOrder.join(', ')}]`);
+                    log(`🎯 当前轮到玩家: ${currentPlayerId}`);
+                }
+            });
+
+            // 监听回合更新事件
+            ioSocket.on('turn_update', function(data) {
+                log(`🔄 回合更新: ${JSON.stringify(data)}`);
+                currentPlayerId = data.currentPlayerId;
+                updateTurnBasedButtons(); // 更新回合制按钮状态
+                
+                if (data.message) {
+                    log(`📢 ${data.message}`);
+                }
+            });
+
+            // 监听过牌结果
+            ioSocket.on('pass_turn_result', function(data) {
+                if (data.success) {
+                    log(`✅ ${data.message}`);
+                } else {
+                    log(`❌ 过牌失败: ${data.message}`);
+                    alert(data.message);
+                }
+            });
+
+            // 监听出牌事件
+            ioSocket.on('cards_played', function(data) {
+                log(`🃏 ${data.playerName} 出牌: ${data.cards.length}张，剩余${data.remainingCards}张`);
+            });
+
+            // 监听出牌结果
+            ioSocket.on('play_cards_result', function(data) {
+                if (data.success) {
+                    log(`✅ ${data.message}`);
+                } else {
+                    log(`❌ 出牌失败: ${data.message}`);
+                    alert(data.message);
+                }
             });
 
             ioSocket.on('your_hand', function(data) {
@@ -483,6 +566,23 @@
         // 游戏相关变量
         let gameState = null;
         let playerHand = [];
+        let currentPlayerId = null; // 当前轮到的玩家ID
+
+        // 过牌功能
+        function passTurn() {
+            if (!socket || !socket.connected) {
+                alert('请先连接WebSocket');
+                return;
+            }
+
+            if (!currentRoom) {
+                alert('请先加入房间');
+                return;
+            }
+
+            log('🎯 发送过牌请求');
+            socket.emit('pass_turn', {});
+        }
 
         // 开始游戏
         function startGame() {

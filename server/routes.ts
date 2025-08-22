@@ -309,6 +309,160 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // 过牌事件 - 将回合交给下一位玩家
+    socket.on('pass_turn', async (data: any) => {
+      try {
+        const roomId = gameRoomManager.getPlayerRoom(socket.id);
+        
+        if (!roomId) {
+          socket.emit('pass_turn_result', {
+            success: false,
+            message: '你不在任何房间中'
+          });
+          return;
+        }
+
+        const gameState = gameRoomManager.getGameState(roomId);
+        if (!gameState) {
+          socket.emit('pass_turn_result', {
+            success: false,
+            message: '游戏状态不存在'
+          });
+          return;
+        }
+
+        // 验证是否轮到当前用户出牌
+        if (gameState.currentPlayer !== socket.userInfo.id) {
+          socket.emit('pass_turn_result', {
+            success: false,
+            message: '现在不是你的回合'
+          });
+          return;
+        }
+
+        // 调用advanceTurn函数，将回合交给下一位玩家
+        const turnResult = gameRoomManager.advanceTurn(roomId);
+        
+        if (turnResult.success) {
+          // 向房间内的所有客户端广播turn_update事件
+          io.to(roomId).emit('turn_update', {
+            currentPlayerId: turnResult.currentPlayerId,
+            message: `${socket.userInfo.username} 选择过牌`
+          });
+
+          socket.emit('pass_turn_result', {
+            success: true,
+            message: '过牌成功'
+          });
+
+          console.log(`玩家 ${socket.userInfo.username} 过牌，回合交给玩家 ${turnResult.currentPlayerId}`);
+        } else {
+          socket.emit('pass_turn_result', {
+            success: false,
+            message: turnResult.message || '过牌失败'
+          });
+        }
+      } catch (error: any) {
+        console.error(`过牌失败: ${error.message}`);
+        socket.emit('pass_turn_result', {
+          success: false,
+          message: '过牌失败，请稍后重试'
+        });
+      }
+    });
+
+    // 出牌事件 - 在权威验证确认出牌合法之后也调用advanceTurn
+    socket.on('play_cards', async (data: any) => {
+      try {
+        const { cards } = data;
+        const roomId = gameRoomManager.getPlayerRoom(socket.id);
+        
+        if (!roomId) {
+          socket.emit('play_cards_result', {
+            success: false,
+            message: '你不在任何房间中'
+          });
+          return;
+        }
+
+        const gameState = gameRoomManager.getGameState(roomId);
+        if (!gameState) {
+          socket.emit('play_cards_result', {
+            success: false,
+            message: '游戏状态不存在'
+          });
+          return;
+        }
+
+        // 验证是否轮到当前用户出牌
+        if (gameState.currentPlayer !== socket.userInfo.id) {
+          socket.emit('play_cards_result', {
+            success: false,
+            message: '现在不是你的回合'
+          });
+          return;
+        }
+
+        // 权威验证：检查玩家是否有这些牌并且出牌合法
+        const { isPlayValid } = await import('./gameLogic');
+        const playerHand = gameState.hands.get(socket.userInfo.id) || [];
+        const validation = isPlayValid(cards, gameState.lastPlay, playerHand);
+
+        if (!validation.valid) {
+          socket.emit('play_cards_result', {
+            success: false,
+            message: validation.error || '出牌无效'
+          });
+          return;
+        }
+
+        // 出牌成功，更新游戏状态
+        const { removeCardsFromHand } = await import('./gameLogic');
+        const newHand = removeCardsFromHand(playerHand, cards);
+        gameState.hands.set(socket.userInfo.id, newHand);
+        
+        gameState.lastPlay = {
+          cards: cards,
+          playType: 'single', // 简化处理，实际应该通过getPlayType计算
+          player: socket.userInfo.id
+        };
+
+        // 广播出牌结果
+        io.to(roomId).emit('cards_played', {
+          playerId: socket.userInfo.id,
+          playerName: socket.userInfo.username,
+          cards: cards,
+          remainingCards: newHand.length,
+          message: `${socket.userInfo.username} 出牌`
+        });
+
+        socket.emit('play_cards_result', {
+          success: true,
+          message: '出牌成功'
+        });
+
+        // 在权威验证确认出牌合法之后，调用advanceTurn函数
+        const turnResult = gameRoomManager.advanceTurn(roomId);
+        
+        if (turnResult.success) {
+          // 向房间内的所有客户端广播turn_update事件
+          io.to(roomId).emit('turn_update', {
+            currentPlayerId: turnResult.currentPlayerId,
+            message: `轮到玩家 ${turnResult.currentPlayerId} 出牌`
+          });
+
+          console.log(`玩家 ${socket.userInfo.username} 出牌成功，回合交给玩家 ${turnResult.currentPlayerId}`);
+        }
+
+      } catch (error: any) {
+        console.error(`出牌失败: ${error.message}`);
+        socket.emit('play_cards_result', {
+          success: false,
+          message: '出牌失败，请稍后重试'
+        });
+      }
+    });
+
     // 获取房间列表事件
     socket.on('get_rooms', () => {
       try {
@@ -332,13 +486,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const result = await gameRoomManager.startGame(roomId, initiatorUserId || 0, isAutoStart);
         
         if (result.success && result.gameState) {
-          // 向房间内所有玩家广播游戏开始
+          // 向房间内所有玩家广播游戏开始，包含完整的playOrder数组和初始的currentPlayerId
           io.to(roomId).emit('game_started', {
             success: true,
             message: result.message,
             gameState: {
               roomId: result.gameState.roomId,
               players: result.gameState.players,
+              playOrder: result.gameState.playOrder, // 完整的playOrder数组
+              currentPlayerId: result.gameState.playOrder[0], // 初始的currentPlayerId
               currentPlayer: result.gameState.currentPlayer,
               gamePhase: result.gameState.gamePhase,
               currentLevel: result.gameState.currentLevel

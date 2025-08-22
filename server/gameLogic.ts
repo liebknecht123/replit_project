@@ -16,6 +16,8 @@ export interface GameState {
   players: number[]; // 4个玩家ID
   hands: Map<number, Card[]>; // 每个玩家的手牌
   currentPlayer: number; // 当前出牌玩家
+  playOrder: number[]; // 固定的玩家ID顺序
+  currentPlayerIndex: number; // 指向playOrder数组的当前回合索引
   lastPlay: PlayedCards | null; // 上一次出牌
   tableCards: Card[]; // 桌面上的牌
   gamePhase: 'waiting' | 'dealing' | 'playing' | 'finished';
@@ -50,6 +52,16 @@ export function createDeck(): Card[] {
 // 洗牌算法 (Fisher-Yates)
 export function shuffleDeck(deck: Card[]): Card[] {
   const shuffled = [...deck];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+// 随机打乱玩家顺序
+export function shufflePlayerOrder(playerIds: number[]): number[] {
+  const shuffled = [...playerIds];
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
@@ -224,7 +236,8 @@ export function removeCardsFromHand(playerHand: Card[], playedCards: Card[]): Ca
 
 // 检查游戏是否结束 (某个玩家手牌为空)
 export function isGameFinished(hands: Map<number, Card[]>): { finished: boolean; winner?: number } {
-  for (const [playerId, hand] of hands.entries()) {
+  const entries = Array.from(hands.entries());
+  for (const [playerId, hand] of entries) {
     if (hand.length === 0) {
       return { finished: true, winner: playerId };
     }
