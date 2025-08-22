@@ -322,15 +322,16 @@ export class GameRoomManager {
     }
   }
 
-  // 开始游戏 (需要4个玩家，房主触发)
-  async startGame(roomId: string, hostUserId: number): Promise<{ success: boolean; message: string; gameState?: import('./gameLogic').GameState }> {
+  // 开始游戏 (需要4个玩家，房主触发或系统自动触发)
+  async startGame(roomId: string, hostUserId: number, isAutoStart: boolean = false): Promise<{ success: boolean; message: string; gameState?: import('./gameLogic').GameState }> {
     const room = this.rooms.get(roomId);
     
     if (!room) {
       return { success: false, message: '房间不存在' };
     }
     
-    if (room.hostUserId !== hostUserId) {
+    // 如果不是自动开始，需要验证房主权限
+    if (!isAutoStart && room.hostUserId !== hostUserId) {
       return { success: false, message: '只有房主可以开始游戏' };
     }
     

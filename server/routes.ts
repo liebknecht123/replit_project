@@ -240,9 +240,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
 
+        // 首先，找到玩家要加入的目标房间
         const result = await gameRoomManager.joinRoom(roomId, socket.id, socket.userInfo);
         
-        if (result.success) {
+        if (result.success && result.room) {
           // 让客户端加入Socket.IO房间
           socket.join(roomId);
           
@@ -253,38 +254,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: `成功加入房间 ${roomId}`
           });
 
-          // 向房间内所有客户端（包括刚加入的玩家）广播完整房间状态更新
-          io.to(roomId).emit('room_update', {
-            type: 'player_joined',
-            roomId: result.room!.id,
-            room: result.room,
-            players: result.room!.players,
-            status: result.room!.status,
-            hostUserId: result.room!.hostUserId,
-            playerCount: result.room!.players.length,
-            maxPlayers: result.room!.maxPlayers,
-            message: `${socket.userInfo.username} 加入了房间`
-          });
-
           console.log(`玩家 ${socket.username} 成功加入房间: ${roomId}`);
 
-          // 检查房间是否满员，如果满员则自动开始游戏
-          if (result.room!.players.length >= result.room!.maxPlayers) {
-            console.log(`房间 ${roomId} 已满员，自动开始游戏...`);
+          // 在完成添加操作之后，获取该房间更新后的玩家数量
+          const room = result.room;
+          const currentPlayerCount = room.players.length;
+
+          // 最关键的条件判断
+          if (currentPlayerCount === room.maxPlayers) {
+            // 如果玩家数量等于最大玩家数
+            console.log(`房间 ${room.id} 已满! 立即开始游戏...`); // 添加这条关键日志用于验证
             
             // 延迟1秒后自动开始游戏，给客户端时间处理房间更新
             setTimeout(async () => {
-              const autoStartResult = await startGameForRoom(roomId);
+              const autoStartResult = await startGameForRoom(room.id, room.hostUserId, true);
               if (autoStartResult.success) {
                 // 向房间内所有玩家广播满员自动开始的消息
-                io.to(roomId).emit('room_update', {
+                io.to(room.id).emit('room_update', {
                   type: 'auto_game_started',
-                  roomId: roomId,
-                  room: gameRoomManager.getRoom(roomId),
+                  roomId: room.id,
+                  room: gameRoomManager.getRoom(room.id),
+                  status: 'playing',
                   message: '房间已满员，游戏自动开始！'
                 });
               }
             }, 1000);
+          } else {
+            // 如果玩家数量未满，正常广播房间更新事件
+            io.to(roomId).emit('room_update', {
+              type: 'player_joined',
+              roomId: room.id,
+              room: room,
+              players: room.players,
+              status: room.status,
+              hostUserId: room.hostUserId,
+              playerCount: room.players.length,
+              maxPlayers: room.maxPlayers,
+              message: `${socket.userInfo.username} 加入了房间`
+            });
           }
         } else {
           socket.emit('room_joined', {
@@ -320,9 +327,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // 开始游戏的封装函数
-    const startGameForRoom = async (roomId: string, initiatorUserId?: number) => {
+    const startGameForRoom = async (roomId: string, initiatorUserId?: number, isAutoStart: boolean = false) => {
       try {
-        const result = await gameRoomManager.startGame(roomId, initiatorUserId || 0);
+        const result = await gameRoomManager.startGame(roomId, initiatorUserId || 0, isAutoStart);
         
         if (result.success && result.gameState) {
           // 向房间内所有玩家广播游戏开始
