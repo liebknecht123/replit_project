@@ -84,6 +84,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
 
+    // 用户名验证
+    if (username.length > 15) {
+      return res.status(400).json({ 
+        error: "用户名不符合规范，必须是15位以内的字母或数字。" 
+      });
+    }
+
+    const usernameRegex = /^[a-zA-Z0-9]+$/;
+    if (!usernameRegex.test(username)) {
+      return res.status(400).json({ 
+        error: "用户名不符合规范，必须是15位以内的字母或数字。" 
+      });
+    }
+
     try {
       // 检查用户是否已存在
       const existingUser = await storage.getUserByUsername(username);
