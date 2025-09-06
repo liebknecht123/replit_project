@@ -404,7 +404,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // 权威验证：检查玩家是否有这些牌并且出牌合法
-        const { isPlayValid } = await import('./gameLogic');
+        const { isPlayValid, removeCardsFromHand, getPlayType, isGameFinished } = await import('./gameLogic');
         const playerHand = gameState.hands.get(socket.userInfo.id) || [];
         const validation = isPlayValid(cards, gameState.lastPlay, playerHand);
 
@@ -417,21 +417,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // 出牌成功，更新游戏状态
-        const { removeCardsFromHand } = await import('./gameLogic');
         const newHand = removeCardsFromHand(playerHand, cards);
         gameState.hands.set(socket.userInfo.id, newHand);
         
         gameState.lastPlay = {
           cards: cards,
-          playType: 'single', // 简化处理，实际应该通过getPlayType计算
+          playType: getPlayType(cards), // 使用正确的牌型计算
           player: socket.userInfo.id
         };
+        gameState.tableCards = cards;
+
+        // 检查游戏是否结束
+        const gameResult = isGameFinished(gameState.hands);
 
         // 广播出牌结果
         io.to(roomId).emit('cards_played', {
           playerId: socket.userInfo.id,
           playerName: socket.userInfo.username,
           cards: cards,
+          playType: gameState.lastPlay.playType,
           remainingCards: newHand.length,
           message: `${socket.userInfo.username} 出牌`
         });
@@ -441,17 +445,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: '出牌成功'
         });
 
-        // 在权威验证确认出牌合法之后，调用advanceTurn函数
-        const turnResult = gameRoomManager.advanceTurn(roomId);
-        
-        if (turnResult.success) {
-          // 向房间内的所有客户端广播turn_update事件
-          io.to(roomId).emit('turn_update', {
-            currentPlayerId: turnResult.currentPlayerId,
-            message: `轮到玩家 ${turnResult.currentPlayerId} 出牌`
+        // 如果游戏结束
+        if (gameResult.finished) {
+          gameState.gamePhase = 'finished';
+          io.to(roomId).emit('game_finished', {
+            winner: gameResult.winner,
+            message: `游戏结束！玩家 ${gameResult.winner} 获胜！`
           });
+          
+          console.log(`游戏结束！玩家 ${gameResult.winner} 获胜！`);
+        } else {
+          // 在权威验证确认出牌合法之后，调用advanceTurn函数
+          const turnResult = gameRoomManager.advanceTurn(roomId);
+          
+          if (turnResult.success) {
+            // 向房间内的所有客户端广播turn_update事件
+            io.to(roomId).emit('turn_update', {
+              currentPlayerId: turnResult.currentPlayerId,
+              message: `轮到玩家 ${turnResult.currentPlayerId} 出牌`
+            });
 
-          console.log(`玩家 ${socket.userInfo.username} 出牌成功，回合交给玩家 ${turnResult.currentPlayerId}`);
+            console.log(`玩家 ${socket.userInfo.username} 出牌成功，回合交给玩家 ${turnResult.currentPlayerId}`);
+          }
         }
 
       } catch (error: any) {
@@ -551,116 +566,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    // 玩家出牌事件
-    socket.on('play_cards', async (data: any) => {
-      try {
-        const { cards } = data;
-        
-        if (!cards || !Array.isArray(cards)) {
-          socket.emit('play_result', {
-            success: false,
-            message: '出牌数据无效'
-          });
-          return;
-        }
-
-        const room = gameRoomManager.getPlayerRoom(socket.id);
-        if (!room || !room.gameState) {
-          socket.emit('play_result', {
-            success: false,
-            message: '房间状态异常'
-          });
-          return;
-        }
-
-        const gameState = room.gameState;
-        
-        // 检查是否轮到当前玩家
-        if (gameState.currentPlayer !== socket.userId) {
-          socket.emit('play_result', {
-            success: false,
-            message: '还没有轮到你出牌'
-          });
-          return;
-        }
-
-        // 获取玩家手牌
-        const playerHand = gameState.hands.get(socket.userId);
-        if (!playerHand) {
-          socket.emit('play_result', {
-            success: false,
-            message: '无法获取玩家手牌'
-          });
-          return;
-        }
-
-        // 导入游戏逻辑进行验证
-        const { isPlayValid, removeCardsFromHand, getPlayType, isGameFinished } = await import('./gameLogic');
-        
-        // 服务器端权威验证
-        const validation = isPlayValid(cards, gameState.lastPlay, playerHand);
-        
-        if (!validation.valid) {
-          socket.emit('play_result', {
-            success: false,
-            message: validation.error
-          });
-          return;
-        }
-
-        // 验证通过，执行出牌
-        const newHand = removeCardsFromHand(playerHand, cards);
-        gameState.hands.set(socket.userId, newHand);
-        
-        // 更新游戏状态
-        gameState.lastPlay = {
-          cards: cards,
-          playType: getPlayType(cards),
-          player: socket.userId
-        };
-        gameState.tableCards = cards;
-        
-        // 切换到下一个玩家
-        const currentPlayerIndex = gameState.players.indexOf(socket.userId);
-        const nextPlayerIndex = (currentPlayerIndex + 1) % gameState.players.length;
-        gameState.currentPlayer = gameState.players[nextPlayerIndex];
-
-        // 检查游戏是否结束
-        const gameResult = isGameFinished(gameState.hands);
-        
-        // 更新房间状态
-        gameRoomManager.updateGameState(room.id, gameState);
-
-        // 向房间内所有玩家广播出牌结果
-        io.to(room.id).emit('card_played', {
-          success: true,
-          player: socket.userId,
-          username: socket.username,
-          cards: cards,
-          playType: gameState.lastPlay.playType,
-          nextPlayer: gameState.currentPlayer,
-          remainingCards: newHand.length
-        });
-
-        // 如果游戏结束
-        if (gameResult.finished) {
-          gameState.gamePhase = 'finished';
-          io.to(room.id).emit('game_finished', {
-            winner: gameResult.winner,
-            message: `游戏结束！玩家 ${gameResult.winner} 获胜！`
-          });
-        }
-
-        console.log(`玩家 ${socket.username} 出牌: ${cards.length}张，剩余: ${newHand.length}张`);
-        
-      } catch (error: any) {
-        console.error(`出牌处理失败: ${error.message}`);
-        socket.emit('play_result', {
-          success: false,
-          message: '出牌处理失败，请稍后重试'
-        });
-      }
-    });
 
     // 断开连接事件
     socket.on('disconnect', async () => {
