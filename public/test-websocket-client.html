@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>掼蛋游戏 WebSocket 测试客户端</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        h1, h2 {
+            color: #333;
+            text-align: center;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .connected { background: #d4edda; color: #155724; }
+        .disconnected { background: #f8d7da; color: #721c24; }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        input, button, select {
+            padding: 8px 12px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .log-area {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            background: #fff;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px;
+        }
+        .log-sent { color: #007bff; }
+        .log-received { color: #28a745; }
+        .log-error { color: #dc3545; }
+        .log-info { color: #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🃏 掼蛋游戏 WebSocket 测试客户端</h1>
+        
+        <div id="connectionStatus" class="status disconnected">
+            ❌ 未连接
+        </div>
+
+        <!-- 连接控制 -->
+        <div class="section">
+            <h2>连接控制</h2>
+            <div>
+                <label>用户名: <input type="text" id="usernameInput" value="testuser" placeholder="输入用户名"></label>
+                <label>密码: <input type="password" id="passwordInput" value="password" placeholder="输入密码"></label>
+                <button id="connectBtn" onclick="connect()">连接</button>
+                <button id="disconnectBtn" onclick="disconnect()" disabled>断开</button>
+            </div>
+        </div>
+
+        <!-- 房间操作 -->
+        <div class="section">
+            <h2>房间操作</h2>
+            <div>
+                <input type="text" id="roomNameInput" value="测试房间" placeholder="房间名称">
+                <button onclick="createRoom()" id="createRoomBtn" disabled>创建房间</button>
+                <button onclick="getRooms()" id="getRoomsBtn" disabled>获取房间列表</button>
+            </div>
+            <div>
+                <input type="text" id="joinRoomIdInput" placeholder="房间ID">
+                <button onclick="joinRoom()" id="joinRoomBtn" disabled>加入房间</button>
+                <button onclick="leaveRoom()" id="leaveRoomBtn" disabled>离开房间</button>
+            </div>
+        </div>
+
+        <!-- 游戏操作 -->
+        <div class="section">
+            <h2>游戏操作</h2>
+            <div>
+                <button onclick="startGame()" id="startGameBtn" disabled>开始游戏</button>
+                <button onclick="passTurn()" id="passTurnBtn" disabled>过牌</button>
+            </div>
+            <div>
+                <label>出牌 (JSON格式): </label>
+                <input type="text" id="playCardsInput" placeholder='[{"suit": "spades", "rank": "A"}]' style="width: 300px;">
+                <button onclick="playCards()" id="playCardsBtn" disabled>出牌</button>
+            </div>
+        </div>
+
+        <!-- 快速测试 -->
+        <div class="section">
+            <h2>快速测试</h2>
+            <button onclick="quickTest()" id="quickTestBtn" disabled>自动测试流程</button>
+            <button onclick="clearLog()">清空日志</button>
+        </div>
+
+        <!-- 日志区域 -->
+        <div class="section">
+            <h2>消息日志</h2>
+            <div id="logArea" class="log-area"></div>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        let isConnected = false;
+        let currentRoomId = null;
+
+        function log(message, type = 'info') {
+            const logArea = document.getElementById('logArea');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logArea.appendChild(logEntry);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        function updateConnectionStatus(connected) {
+            isConnected = connected;
+            const statusEl = document.getElementById('connectionStatus');
+            
+            if (connected) {
+                statusEl.textContent = '✅ 已连接';
+                statusEl.className = 'status connected';
+            } else {
+                statusEl.textContent = '❌ 未连接';
+                statusEl.className = 'status disconnected';
+            }
+
+            // 更新按钮状态
+            document.getElementById('connectBtn').disabled = connected;
+            document.getElementById('disconnectBtn').disabled = !connected;
+            document.getElementById('createRoomBtn').disabled = !connected;
+            document.getElementById('getRoomsBtn').disabled = !connected;
+            document.getElementById('joinRoomBtn').disabled = !connected;
+            document.getElementById('leaveRoomBtn').disabled = !connected;
+            document.getElementById('startGameBtn').disabled = !connected;
+            document.getElementById('passTurnBtn').disabled = !connected;
+            document.getElementById('playCardsBtn').disabled = !connected;
+            document.getElementById('quickTestBtn').disabled = !connected;
+        }
+
+        async function login() {
+            const username = document.getElementById('usernameInput').value;
+            const password = document.getElementById('passwordInput').value;
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    log(`登录成功: ${result.message}`, 'info');
+                    return result.token;
+                } else {
+                    log(`登录失败: ${result.message}`, 'error');
+                    return null;
+                }
+            } catch (error) {
+                log(`登录错误: ${error.message}`, 'error');
+                return null;
+            }
+        }
+
+        async function connect() {
+            if (socket) {
+                socket.close();
+            }
+
+            const token = await login();
+            if (!token) {
+                return;
+            }
+
+            try {
+                const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+                const wsUrl = `${protocol}//${window.location.host}/ws`;
+                
+                log(`连接到 WebSocket: ${wsUrl}`, 'info');
+                socket = new WebSocket(wsUrl);
+
+                socket.onopen = function() {
+                    log('WebSocket 连接已建立', 'info');
+                    
+                    // 发送认证token
+                    const authMessage = {
+                        type: 'auth',
+                        token: token
+                    };
+                    socket.send(JSON.stringify(authMessage));
+                    log(`发送认证: ${JSON.stringify(authMessage)}`, 'sent');
+                };
+
+                socket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        log(`收到消息: ${JSON.stringify(data, null, 2)}`, 'received');
+                        
+                        // 处理特定消息类型
+                        if (data.type === 'auth_success') {
+                            updateConnectionStatus(true);
+                            log('认证成功！', 'info');
+                        } else if (data.type === 'auth_error') {
+                            log(`认证失败: ${data.message}`, 'error');
+                            disconnect();
+                        }
+                    } catch (error) {
+                        log(`解析消息失败: ${event.data}`, 'error');
+                    }
+                };
+
+                socket.onclose = function(event) {
+                    log(`WebSocket 连接已关闭 (code: ${event.code})`, 'info');
+                    updateConnectionStatus(false);
+                    socket = null;
+                };
+
+                socket.onerror = function(error) {
+                    log(`WebSocket 错误: ${error.message || 'Unknown error'}`, 'error');
+                    updateConnectionStatus(false);
+                };
+
+            } catch (error) {
+                log(`连接失败: ${error.message}`, 'error');
+            }
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.close();
+                socket = null;
+            }
+            updateConnectionStatus(false);
+        }
+
+        function sendMessage(eventName, data = {}) {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                log('WebSocket 未连接', 'error');
+                return;
+            }
+
+            const message = { ...data };
+            socket.emit ? socket.emit(eventName, message) : socket.send(JSON.stringify({ event: eventName, ...message }));
+            log(`发送事件 ${eventName}: ${JSON.stringify(message)}`, 'sent');
+        }
+
+        function createRoom() {
+            const roomName = document.getElementById('roomNameInput').value;
+            sendMessage('create_room', { roomName });
+        }
+
+        function getRooms() {
+            sendMessage('get_rooms');
+        }
+
+        function joinRoom() {
+            const roomId = document.getElementById('joinRoomIdInput').value;
+            sendMessage('join_room', { roomId });
+            currentRoomId = roomId;
+        }
+
+        function leaveRoom() {
+            sendMessage('leave_room');
+            currentRoomId = null;
+        }
+
+        function startGame() {
+            sendMessage('start_game');
+        }
+
+        function passTurn() {
+            sendMessage('pass_turn');
+        }
+
+        function playCards() {
+            const cardsInput = document.getElementById('playCardsInput').value;
+            try {
+                const cards = JSON.parse(cardsInput);
+                sendMessage('play_cards', { cards });
+            } catch (error) {
+                log(`解析出牌数据失败: ${error.message}`, 'error');
+            }
+        }
+
+        function quickTest() {
+            log('开始自动测试流程...', 'info');
+            
+            setTimeout(() => {
+                log('1. 获取房间列表', 'info');
+                getRooms();
+            }, 1000);
+
+            setTimeout(() => {
+                log('2. 创建测试房间', 'info');
+                createRoom();
+            }, 2000);
+
+            setTimeout(() => {
+                log('3. 测试完成', 'info');
+            }, 3000);
+        }
+
+        function clearLog() {
+            document.getElementById('logArea').innerHTML = '';
+        }
+
+        // 初始化
+        updateConnectionStatus(false);
+        log('WebSocket 测试客户端已加载', 'info');
+    </script>
+</body>
+</html>
