@@ -592,21 +592,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('disconnect', async () => {
       console.log(`用户断开连接: ${socket.username}, socket id: ${socket.id}`);
       
-      // 处理玩家离开房间
-      const room = await gameRoomManager.leaveRoom(socket.id);
-      if (room) {
-        // 向房间内剩余客户端广播完整房间状态更新
-        io.to(room.id).emit('room_update', {
-          type: 'player_left',
-          roomId: room.id,
-          room: room,
-          players: room.players,
-          status: room.status,
-          hostUserId: room.hostUserId,
-          playerCount: room.players.length,
-          maxPlayers: room.maxPlayers,
-          message: `${socket.username} 离开了房间`
+      // 处理玩家断线（不移除玩家，只设置isConnected=false）
+      const { room, player } = await gameRoomManager.handlePlayerDisconnect(socket.id);
+      if (room && player) {
+        // 向房间内其他玩家广播断线事件
+        io.to(room.id).emit('player_disconnected', {
+          playerId: player.userId,
+          playerName: player.username,
+          message: `${player.username} 断线了，但仍在房间中等待重连`
         });
+        
+        console.log(`玩家 ${player.username} 断线，房间 ${room.id} 中其他玩家已收到通知`);
       }
     });
 

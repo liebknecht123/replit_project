@@ -412,6 +412,39 @@ export class GameRoomManager {
     return this.userSockets.get(userId);
   }
 
+  // 处理玩家断线（不移除玩家，只设置isConnected=false）
+  async handlePlayerDisconnect(socketId: string): Promise<{ room: ActiveRoom | null; player: ConnectedPlayer | null }> {
+    const roomId = this.playerRooms.get(socketId);
+    if (!roomId) {
+      return { room: null, player: null };
+    }
+
+    const room = this.rooms.get(roomId);
+    if (!room) {
+      this.playerRooms.delete(socketId);
+      return { room: null, player: null };
+    }
+
+    // 找到断线的玩家
+    const playerIndex = room.players.findIndex(p => p.socketId === socketId);
+    if (playerIndex === -1) {
+      return { room: null, player: null };
+    }
+
+    const player = room.players[playerIndex];
+    
+    // 设置玩家为断线状态
+    player.isConnected = false;
+    
+    // 从映射中移除socket连接信息
+    this.playerRooms.delete(socketId);
+    this.unregisterUserSocket(player.userId);
+
+    console.log(`玩家 ${player.username} 断线，但保留在房间 ${roomId} 中`);
+    
+    return { room, player };
+  }
+
   // 回合推进函数
   advanceTurn(roomId: string): { success: boolean; currentPlayerId?: number; message?: string } {
     const room = this.rooms.get(roomId);
