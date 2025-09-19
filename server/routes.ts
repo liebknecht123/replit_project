@@ -148,6 +148,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     allowEIO3: true  // 允许Engine.IO v3客户端连接到v4服务器
   });
 
+  // 创建startGame函数：包含所有开始游戏的逻辑
+  const startGame = async (roomId: string) => {
+    try {
+      const result = await gameRoomManager.startGame(roomId, 0, true); // isAutoStart = true
+      
+      if (result.success && result.gameState) {
+        // 将房间状态设为playing
+        const room = gameRoomManager.getRoom(roomId);
+        if (room) {
+          room.status = 'playing';
+        }
+
+        // 为所有玩家私密发送手牌
+        const gameState = result.gameState;
+        const handsEntries = Array.from(gameState.hands.entries());
+        for (const [playerId, hand] of handsEntries) {
+          const playerSocketId = gameRoomManager.getUserSocket(playerId);
+          if (playerSocketId) {
+            io.to(playerSocketId).emit('player_cards', {
+              cards: hand,
+              playerCount: hand.length
+            });
+          }
+        }
+
+        console.log(`房间 ${roomId} 游戏开始！playOrder: ${JSON.stringify(gameState.playOrder)}, currentPlayerId: ${gameState.playOrder[0]}`);
+        return { success: true, message: result.message, gameState: gameState };
+      } else {
+        console.error(`房间 ${roomId} 开始游戏失败: ${result.message}`);
+        return { success: false, message: result.message };
+      }
+    } catch (error: any) {
+      console.error(`房间 ${roomId} 开始游戏失败: ${error.message}`);
+      return { success: false, message: '开始游戏失败，请稍后重试' };
+    }
+  };
+
   // JWT认证中间件 - 优雅处理认证错误
   io.use(async (socket: any, next) => {
     try {
@@ -247,40 +284,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // 让客户端加入Socket.IO房间
           socket.join(roomId);
           
-          // 向加入者发送成功消息
-          socket.emit('room_joined', {
-            success: true,
-            room: result.room,
-            message: `成功加入房间 ${roomId}`
-          });
-
           console.log(`玩家 ${socket.username} 成功加入房间: ${roomId}`);
 
-          // 在完成添加操作之后，获取该房间更新后的玩家数量
+          // 获取该房间更新后的玩家数量
           const room = result.room;
           const currentPlayerCount = room.players.length;
 
-          // 最关键的条件判断
+          // 检查房间是否已满
           if (currentPlayerCount === room.maxPlayers) {
-            // 如果玩家数量等于最大玩家数
-            console.log(`房间 ${room.id} 已满! 立即开始游戏...`); // 添加这条关键日志用于验证
+            console.log(`房间 ${room.id} 已满! 立即开始游戏...`);
             
-            // 延迟1秒后自动开始游戏，给客户端时间处理房间更新
-            setTimeout(async () => {
-              const autoStartResult = await startGameForRoom(room.id, room.hostUserId, true);
-              if (autoStartResult.success) {
-                // 向房间内所有玩家广播满员自动开始的消息
-                io.to(room.id).emit('room_update', {
-                  type: 'auto_game_started',
-                  roomId: room.id,
-                  room: gameRoomManager.getRoom(room.id),
-                  status: 'playing',
-                  message: '房间已满员，游戏自动开始！'
-                });
-              }
-            }, 1000);
+            // 房间满员，立即调用startGame函数
+            const gameStartResult = await startGame(roomId);
+            
+            if (gameStartResult.success && gameStartResult.gameState) {
+              // 向房间内所有玩家广播游戏开始
+              io.to(roomId).emit('game_started', {
+                success: true,
+                message: '房间满员，游戏自动开始！',
+                gameState: {
+                  roomId: gameStartResult.gameState.roomId,
+                  players: gameStartResult.gameState.players,
+                  playOrder: gameStartResult.gameState.playOrder,
+                  currentPlayerId: gameStartResult.gameState.playOrder[0],
+                  currentPlayer: gameStartResult.gameState.currentPlayer,
+                  gamePhase: gameStartResult.gameState.gamePhase,
+                  currentLevel: gameStartResult.gameState.currentLevel
+                }
+              });
+              
+              console.log(`房间 ${roomId} 游戏自动开始！`);
+            } else {
+              console.error(`房间 ${roomId} 开始游戏失败: ${gameStartResult.message}`);
+            }
           } else {
-            // 如果玩家数量未满，正常广播房间更新事件
+            // 房间未满，广播房间状态更新
             io.to(roomId).emit('room_update', {
               type: 'player_joined',
               roomId: room.id,
@@ -294,25 +332,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
         } else {
-          socket.emit('room_joined', {
-            success: false,
-            message: result.message
-          });
+          // 加入失败时不再发送单独的socket.emit，统一记录日志即可
           console.log(`玩家 ${socket.username} 加入房间失败: ${result.message}`);
         }
       } catch (error: any) {
         console.error(`加入房间失败: ${error.message}`);
-        socket.emit('room_joined', {
-          success: false,
-          message: '加入房间失败，请稍后重试'
-        });
       }
     });
 
     // 过牌事件 - 将回合交给下一位玩家
     socket.on('pass_turn', async (data: any) => {
       try {
-        const roomId = gameRoomManager.getPlayerRoom(socket.id);
+        const playerRoom = gameRoomManager.getPlayerRoom(socket.id);
+        const roomId = playerRoom ? (typeof playerRoom === 'string' ? playerRoom : playerRoom.id) : null;
         
         if (!roomId) {
           socket.emit('pass_turn_result', {
@@ -340,28 +372,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
 
-        // 调用advanceTurn函数，将回合交给下一位玩家
-        const turnResult = gameRoomManager.advanceTurn(roomId);
+        // 推进回合：currentPlayerIndex = (currentPlayerIndex + 1) % 4
+        gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % 4;
+        gameState.currentPlayer = gameState.playOrder[gameState.currentPlayerIndex];
         
-        if (turnResult.success) {
-          // 向房间内的所有客户端广播turn_update事件
-          io.to(roomId).emit('turn_update', {
-            currentPlayerId: turnResult.currentPlayerId,
-            message: `${socket.userInfo.username} 选择过牌`
-          });
+        // 向房间内的所有客户端广播turn_update事件
+        io.to(roomId!).emit('turn_update', {
+          currentPlayerId: gameState.currentPlayer,
+          message: `${socket.userInfo.username} 选择过牌`
+        });
 
-          socket.emit('pass_turn_result', {
-            success: true,
-            message: '过牌成功'
-          });
-
-          console.log(`玩家 ${socket.userInfo.username} 过牌，回合交给玩家 ${turnResult.currentPlayerId}`);
-        } else {
-          socket.emit('pass_turn_result', {
-            success: false,
-            message: turnResult.message || '过牌失败'
-          });
-        }
+        console.log(`玩家 ${socket.userInfo.username} 过牌，回合交给玩家 ${gameState.currentPlayer}`);
       } catch (error: any) {
         console.error(`过牌失败: ${error.message}`);
         socket.emit('pass_turn_result', {
@@ -375,7 +396,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('play_cards', async (data: any) => {
       try {
         const { cards } = data;
-        const roomId = gameRoomManager.getPlayerRoom(socket.id);
+        const playerRoom = gameRoomManager.getPlayerRoom(socket.id);
+        const roomId = playerRoom ? (typeof playerRoom === 'string' ? playerRoom : playerRoom.id) : null;
         
         if (!roomId) {
           socket.emit('play_cards_result', {
@@ -431,7 +453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const gameResult = isGameFinished(gameState.hands);
 
         // 广播出牌结果
-        io.to(roomId).emit('cards_played', {
+        io.to(roomId!).emit('cards_played', {
           playerId: socket.userInfo.id,
           playerName: socket.userInfo.username,
           cards: cards,
@@ -448,25 +470,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // 如果游戏结束
         if (gameResult.finished) {
           gameState.gamePhase = 'finished';
-          io.to(roomId).emit('game_finished', {
+          io.to(roomId!).emit('game_finished', {
             winner: gameResult.winner,
             message: `游戏结束！玩家 ${gameResult.winner} 获胜！`
           });
           
           console.log(`游戏结束！玩家 ${gameResult.winner} 获胜！`);
         } else {
-          // 在权威验证确认出牌合法之后，调用advanceTurn函数
-          const turnResult = gameRoomManager.advanceTurn(roomId);
+          // 在权威验证确认出牌合法之后，推进回合
+          gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % 4;
+          gameState.currentPlayer = gameState.playOrder[gameState.currentPlayerIndex];
           
-          if (turnResult.success) {
-            // 向房间内的所有客户端广播turn_update事件
-            io.to(roomId).emit('turn_update', {
-              currentPlayerId: turnResult.currentPlayerId,
-              message: `轮到玩家 ${turnResult.currentPlayerId} 出牌`
-            });
+          // 向房间内的所有客户端广播turn_update事件
+          io.to(roomId!).emit('turn_update', {
+            currentPlayerId: gameState.currentPlayer,
+            message: `轮到玩家 ${gameState.currentPlayer} 出牌`
+          });
 
-            console.log(`玩家 ${socket.userInfo.username} 出牌成功，回合交给玩家 ${turnResult.currentPlayerId}`);
-          }
+          console.log(`玩家 ${socket.userInfo.username} 出牌成功，回合交给玩家 ${gameState.currentPlayer}`);
         }
 
       } catch (error: any) {
