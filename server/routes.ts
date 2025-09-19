@@ -238,6 +238,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   io.on('connection', (socket: any) => {
     console.log(`用户已连接 WebSocket, socket id: ${socket.id}, 用户: ${socket.username}`);
 
+    // 断线重连逻辑：在JWT认证成功后立即检查是否有断线的玩家需要重连
+    const { room: reconnectRoom, player: reconnectPlayer } = gameRoomManager.findDisconnectedPlayerAndReconnect(socket.userId, socket.id);
+    
+    if (reconnectRoom && reconnectPlayer) {
+      // 让新的socket加入房间
+      socket.join(reconnectRoom.id);
+      
+      // 获取当前游戏状态
+      const gameState = gameRoomManager.getGameState(reconnectRoom.id);
+      
+      // 向重连的玩家发送reconnect_success事件，包含完整的游戏状态
+      socket.emit('reconnect_success', {
+        success: true,
+        message: '重连成功！',
+        room: reconnectRoom,
+        gameState: gameState,
+        yourCards: gameState ? gameState.hands.get(socket.userId) || [] : []
+      });
+      
+      // 向房间内所有玩家广播player_reconnected事件
+      io.to(reconnectRoom.id).emit('player_reconnected', {
+        playerId: reconnectPlayer.userId,
+        playerName: reconnectPlayer.username,
+        message: `${reconnectPlayer.username} 重新连接了`
+      });
+      
+      console.log(`玩家 ${reconnectPlayer.username} 成功重连到房间 ${reconnectRoom.id}`);
+    }
+
     // 创建房间事件
     socket.on('create_room', async (data: any) => {
       try {

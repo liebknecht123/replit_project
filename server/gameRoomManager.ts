@@ -445,6 +445,32 @@ export class GameRoomManager {
     return { room, player };
   }
 
+  // 查找断线的玩家并处理重连
+  findDisconnectedPlayerAndReconnect(userId: number, newSocketId: string): { room: ActiveRoom | null; player: ConnectedPlayer | null } {
+    // 遍历所有房间查找断线的玩家
+    const roomsArray = Array.from(this.rooms.entries());
+    for (const [roomId, room] of roomsArray) {
+      const playerIndex = room.players.findIndex((p: ConnectedPlayer) => p.userId === userId && !p.isConnected);
+      
+      if (playerIndex !== -1) {
+        const player = room.players[playerIndex];
+        
+        // 重连玩家：更新连接状态和socket ID
+        player.isConnected = true;
+        player.socketId = newSocketId;
+        
+        // 更新映射关系
+        this.playerRooms.set(newSocketId, roomId);
+        this.registerUserSocket(userId, newSocketId);
+        
+        console.log(`玩家 ${player.username} (ID: ${userId}) 成功重连到房间 ${roomId}`);
+        return { room, player };
+      }
+    }
+    
+    return { room: null, player: null };
+  }
+
   // 回合推进函数
   advanceTurn(roomId: string): { success: boolean; currentPlayerId?: number; message?: string } {
     const room = this.rooms.get(roomId);
