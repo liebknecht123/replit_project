@@ -11,6 +11,7 @@ interface ConnectedPlayer {
   nickname?: string;
   isHost: boolean;
   joinedAt: Date;
+  isConnected: boolean;  // 新增：连接状态字段
 }
 
 interface ActiveRoom {
@@ -81,7 +82,8 @@ export class GameRoomManager {
           username: user.username,
           nickname: user.username,
           isHost: true,
-          joinedAt: new Date()
+          joinedAt: new Date(),
+          isConnected: true  // 新增：初始连接状态为true
         }
       ],
       createdAt: new Date()
@@ -136,7 +138,8 @@ export class GameRoomManager {
       username: user.username,
       nickname: user.username,
       isHost: false,
-      joinedAt: new Date()
+      joinedAt: new Date(),
+      isConnected: true  // 新增：初始连接状态为true
     });
 
     this.playerRooms.set(socketId, roomId);
@@ -187,7 +190,8 @@ export class GameRoomManager {
           username: p.username,
           nickname: p.username,
           isHost: p.isHost === "true",
-          joinedAt: p.joinedAt || new Date()
+          joinedAt: p.joinedAt || new Date(),
+          isConnected: this.userSockets.has(p.userId)  // 新增：根据是否有socket来判断连接状态
         })),
         createdAt: room.createdAt || new Date()
       };
