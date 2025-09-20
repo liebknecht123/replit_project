@@ -327,6 +327,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const gameStartResult = await startGame(roomId);
             
             if (gameStartResult.success && gameStartResult.gameState) {
+              // 添加游戏开始日志
+              const playOrderNames = gameStartResult.gameState.playOrder.map((id: number) => 
+                gameRoomManager.getPlayerDisplayName(roomId, id)
+              ).join(' -> ');
+              const firstPlayerName = gameRoomManager.getPlayerDisplayName(roomId, gameStartResult.gameState.playOrder[0]);
+              
+              gameRoomManager.addGameLog(roomId, `🎮 游戏开始！出牌顺序：${playOrderNames}`, 'system');
+              gameRoomManager.addGameLog(roomId, `🎯 轮到 ${firstPlayerName} 先出牌`, 'system');
+              
               // 向房间内所有玩家广播游戏开始
               io.to(roomId).emit('game_started', {
                 success: true,
@@ -406,12 +415,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         gameState.currentPlayer = gameState.playOrder[gameState.currentPlayerIndex];
         
         // 向房间内的所有客户端广播turn_update事件
+        // 获取下一个玩家的昵称
+        const nextPlayerName = gameRoomManager.getPlayerDisplayName(roomId!, gameState.currentPlayer);
+        const passMessage = `${socket.userInfo.username} 选择过牌，轮到 ${nextPlayerName}`;
+        
+        // 添加游戏日志
+        gameRoomManager.addGameLog(roomId!, passMessage, 'game', socket.userId, socket.userInfo.username);
+        
         io.to(roomId!).emit('turn_update', {
           currentPlayerId: gameState.currentPlayer,
-          message: `${socket.userInfo.username} 选择过牌`
+          message: passMessage
         });
 
-        console.log(`玩家 ${socket.userInfo.username} 过牌，回合交给玩家 ${gameState.currentPlayer}`);
+        console.log(`玩家 ${socket.userInfo.username} 过牌，回合交给 ${nextPlayerName}`);
       } catch (error: any) {
         console.error(`过牌失败: ${error.message}`);
         socket.emit('pass_turn_result', {
@@ -511,12 +527,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           gameState.currentPlayer = gameState.playOrder[gameState.currentPlayerIndex];
           
           // 向房间内的所有客户端广播turn_update事件
+          // 获取下一个玩家的昵称
+          const nextPlayerName = gameRoomManager.getPlayerDisplayName(roomId!, gameState.currentPlayer);
+          const turnMessage = `轮到 ${nextPlayerName} 出牌`;
+          
+          // 添加游戏日志
+          gameRoomManager.addGameLog(roomId!, `${socket.userInfo.username} 出牌成功，${turnMessage}`, 'game', socket.userId, socket.userInfo.username);
+          
           io.to(roomId!).emit('turn_update', {
             currentPlayerId: gameState.currentPlayer,
-            message: `轮到玩家 ${gameState.currentPlayer} 出牌`
+            message: turnMessage
           });
 
-          console.log(`玩家 ${socket.userInfo.username} 出牌成功，回合交给玩家 ${gameState.currentPlayer}`);
+          console.log(`玩家 ${socket.userInfo.username} 出牌成功，回合交给 ${nextPlayerName}`);
         }
 
       } catch (error: any) {
@@ -551,6 +574,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const result = await gameRoomManager.startGame(roomId, initiatorUserId || 0, isAutoStart);
         
         if (result.success && result.gameState) {
+          // 添加游戏开始日志
+          const playOrderNames = result.gameState.playOrder.map((id: number) => 
+            gameRoomManager.getPlayerDisplayName(roomId, id)
+          ).join(' -> ');
+          const firstPlayerName = gameRoomManager.getPlayerDisplayName(roomId, result.gameState.playOrder[0]);
+          
+          gameRoomManager.addGameLog(roomId, `🎮 游戏开始！出牌顺序：${playOrderNames}`, 'system');
+          gameRoomManager.addGameLog(roomId, `🎯 轮到 ${firstPlayerName} 先出牌`, 'system');
+          
           // 向房间内所有玩家广播游戏开始，包含完整的playOrder数组和初始的currentPlayerId
           io.to(roomId).emit('game_started', {
             success: true,
@@ -632,6 +664,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
         console.log(`玩家 ${player.username} 断线，房间 ${room.id} 中其他玩家已收到通知`);
+      }
+    });
+
+    // 处理游戏日志同步请求
+    socket.on('request_game_logs', (data: any) => {
+      try {
+        const { roomId } = data;
+        if (!roomId) {
+          socket.emit('error', { message: '房间ID不能为空' });
+          return;
+        }
+
+        const gameLogs = gameRoomManager.getGameLogs(roomId);
+        
+        socket.emit('game_logs_sync', {
+          success: true,
+          roomId: roomId,
+          logs: gameLogs
+        });
+
+        console.log(`发送游戏日志给玩家 ${socket.username}，房间 ${roomId}，共 ${gameLogs.length} 条`);
+      } catch (error: any) {
+        console.error(`游戏日志同步失败: ${error.message}`);
+        socket.emit('game_logs_sync', {
+          success: false,
+          message: '获取游戏日志失败'
+        });
       }
     });
 

@@ -14,6 +14,15 @@ interface ConnectedPlayer {
   isConnected: boolean;  // 新增：连接状态字段
 }
 
+interface GameLogEntry {
+  id: string;
+  timestamp: Date;
+  message: string;
+  type: 'system' | 'game' | 'player';
+  playerId?: number;
+  playerName?: string;
+}
+
 interface ActiveRoom {
   id: string;
   hostUserId: number;
@@ -23,6 +32,7 @@ interface ActiveRoom {
   players: ConnectedPlayer[];
   createdAt: Date;
   gameState?: import('./gameLogic').GameState; // 游戏状态
+  gameLogs: GameLogEntry[];  // 新增：游戏日志历史
 }
 
 export class GameRoomManager {
@@ -86,7 +96,8 @@ export class GameRoomManager {
           isConnected: true  // 新增：初始连接状态为true
         }
       ],
-      createdAt: new Date()
+      createdAt: new Date(),
+      gameLogs: []  // 初始化空日志数组
     };
 
     this.rooms.set(roomId, room);
@@ -193,7 +204,8 @@ export class GameRoomManager {
           joinedAt: p.joinedAt || new Date(),
           isConnected: this.userSockets.has(p.userId)  // 新增：根据是否有socket来判断连接状态
         })),
-        createdAt: room.createdAt || new Date()
+        createdAt: room.createdAt || new Date(),
+        gameLogs: []  // 从数据库加载时初始化空日志数组
       };
 
       this.rooms.set(roomId, activeRoom);
@@ -469,6 +481,47 @@ export class GameRoomManager {
     }
     
     return { room: null, player: null };
+  }
+
+  // 添加游戏日志
+  addGameLog(roomId: string, message: string, type: 'system' | 'game' | 'player' = 'system', playerId?: number, playerName?: string): void {
+    const room = this.rooms.get(roomId);
+    if (!room) {
+      return;
+    }
+
+    const logEntry: GameLogEntry = {
+      id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date(),
+      message: message,
+      type: type,
+      playerId: playerId,
+      playerName: playerName
+    };
+
+    room.gameLogs.push(logEntry);
+    
+    // 限制日志条目数量，避免内存泄漏（保留最近100条）
+    if (room.gameLogs.length > 100) {
+      room.gameLogs = room.gameLogs.slice(-100);
+    }
+  }
+
+  // 获取房间的游戏日志
+  getGameLogs(roomId: string): GameLogEntry[] {
+    const room = this.rooms.get(roomId);
+    return room ? [...room.gameLogs] : [];
+  }
+
+  // 获取玩家昵称（优先使用nickname，回退到username）
+  getPlayerDisplayName(roomId: string, playerId: number): string {
+    const room = this.rooms.get(roomId);
+    if (!room) {
+      return `玩家${playerId}`;
+    }
+
+    const player = room.players.find(p => p.userId === playerId);
+    return player ? (player.nickname || player.username) : `玩家${playerId}`;
   }
 
   // 回合推进函数
