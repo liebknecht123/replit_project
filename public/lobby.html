@@ -453,6 +453,68 @@
                 log(`🏆 游戏结束: ${data.message}`);
                 updateGameState({ gamePhase: 'finished', winner: data.winner });
             });
+
+            // 监听断线重连成功事件
+            ioSocket.on('reconnect_success', function(data) {
+                log(`🔄 重连成功: ${data.message}`);
+                
+                // 恢复房间状态
+                if (data.room) {
+                    currentRoom = data.room;
+                    log(`🏠 已恢复房间状态: ${data.room.id}`);
+                    updateStartGameButton();
+                }
+                
+                // 恢复游戏状态
+                if (data.gameState) {
+                    log(`🎮 已恢复游戏状态，当前轮到: 玩家${data.gameState.currentPlayerId}`);
+                    currentPlayerId = data.gameState.currentPlayerId;
+                    updateTurnBasedButtons();
+                    updateGameState(data.gameState);
+                }
+                
+                // 恢复手牌
+                if (data.yourCards && data.yourCards.length > 0) {
+                    log(`🃏 已恢复手牌: ${data.yourCards.length}张`);
+                    displayPlayerHand(data.yourCards);
+                }
+                
+                // 请求完整的游戏日志
+                if (data.room) {
+                    socket.emit('request_game_logs', { roomId: data.room.id });
+                }
+                
+                alert('重连成功！已恢复到断线前的游戏状态。');
+            });
+
+            // 监听玩家断线事件
+            ioSocket.on('player_disconnected', function(data) {
+                log(`🔌 ${data.playerName} 断线了，等待重连...`);
+            });
+
+            // 监听玩家重连事件
+            ioSocket.on('player_reconnected', function(data) {
+                log(`🔗 ${data.playerName} 重新连接了`);
+            });
+
+            // 监听游戏日志同步事件
+            ioSocket.on('game_logs_sync', function(data) {
+                log(`📋 收到游戏日志同步，共 ${data.logs.length} 条记录`);
+                
+                // 清空当前日志并显示完整历史
+                const logElement = document.getElementById('messages');
+                if (logElement) {
+                    logElement.innerHTML = '';
+                    data.logs.forEach(logEntry => {
+                        const logLine = document.createElement('div');
+                        logLine.textContent = `[${new Date(logEntry.timestamp).toLocaleTimeString()}] ${logEntry.message}`;
+                        logElement.appendChild(logLine);
+                    });
+                    
+                    // 滚动到底部
+                    logElement.scrollTop = logElement.scrollHeight;
+                }
+            });
         }
 
         function handleMessage(message) {
