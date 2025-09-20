@@ -351,8 +351,8 @@ export class GameRoomManager {
       return { success: false, message: '只有房主可以开始游戏' };
     }
     
-    if (room.players.length < 2) {  // 暂时用2个玩家测试
-      return { success: false, message: '至少需要2个玩家才能开始游戏' };
+    if (room.players.length !== 4) {
+      return { success: false, message: '掼蛋需要恰好4个玩家才能开始游戏' };
     }
     
     if (room.status !== 'waiting') {
@@ -368,7 +368,7 @@ export class GameRoomManager {
     
     let hands: Map<number, import('./gameLogic').Card[]>;
     try {
-      hands = dealCards(playerIds.slice(0, 4)); // 确保最多4个玩家
+      hands = dealCards(playerIds); // 严格要求4个玩家
       console.log(`房间 ${roomId} 发牌成功，共${hands.size}个玩家获得手牌`);
     } catch (error: any) {
       console.error(`房间 ${roomId} 发牌失败: ${error.message}`);
@@ -376,8 +376,8 @@ export class GameRoomManager {
     }
     
     // 在发牌逻辑之后，执行以下操作：
-    // 1. 获取房间内所有玩家的ID列表
-    const allPlayerIds = playerIds.slice(0, 4);
+    // 1. 获取房间内所有玩家的ID列表 (必须是4个玩家)
+    const allPlayerIds = playerIds;
     // 2. 随机打乱这个ID列表的顺序
     const playOrder = shufflePlayerOrder(allPlayerIds);
     // 3. 将currentPlayerIndex初始化为0
