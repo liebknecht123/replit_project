@@ -166,14 +166,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const [playerId, hand] of handsEntries) {
           const playerSocketId = gameRoomManager.getUserSocket(playerId);
           if (playerSocketId) {
-            io.to(playerSocketId).emit('player_cards', {
+            io.to(playerSocketId).emit('your_hand', {
               cards: hand,
               playerCount: hand.length
             });
           }
         }
 
-        console.log(`房间 ${roomId} 游戏开始！playOrder: ${JSON.stringify(gameState.playOrder)}, currentPlayerId: ${gameState.playOrder[0]}`);
+        console.log(`房间 ${roomId} 游戏开始！playOrder: ${JSON.stringify(gameState.playOrder)}, currentPlayerId: ${gameState.currentPlayer}`);
         return { success: true, message: result.message, gameState: gameState };
       } else {
         console.error(`房间 ${roomId} 开始游戏失败: ${result.message}`);
@@ -331,7 +331,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const playOrderNames = gameStartResult.gameState.playOrder.map((id: number) => 
                 gameRoomManager.getPlayerDisplayName(roomId, id)
               ).join(' -> ');
-              const firstPlayerName = gameRoomManager.getPlayerDisplayName(roomId, gameStartResult.gameState.playOrder[0]);
+              const firstPlayerName = gameRoomManager.getPlayerDisplayName(roomId, gameStartResult.gameState.currentPlayer);
               
               gameRoomManager.addGameLog(roomId, `🎮 游戏开始！出牌顺序：${playOrderNames}`, 'system');
               gameRoomManager.addGameLog(roomId, `🎯 轮到 ${firstPlayerName} 先出牌`, 'system');
@@ -344,7 +344,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   roomId: gameStartResult.gameState.roomId,
                   players: gameStartResult.gameState.players,
                   playOrder: gameStartResult.gameState.playOrder,
-                  currentPlayerId: gameStartResult.gameState.playOrder[0],
+                  currentPlayerId: gameStartResult.gameState.currentPlayer,
                   currentPlayer: gameStartResult.gameState.currentPlayer,
                   gamePhase: gameStartResult.gameState.gamePhase,
                   currentLevel: gameStartResult.gameState.currentLevel
