@@ -257,6 +257,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         yourCards: gameState ? gameState.hands.get(socket.userId) || [] : []
       });
       
+      // 如果游戏已经开始，单独发送手牌给重连的玩家
+      if (gameState && gameState.hands && gameState.hands.has(socket.userId)) {
+        const playerHand = gameState.hands.get(socket.userId) || [];
+        console.log(`🃏 向重连玩家 ${reconnectPlayer.username} 发送手牌，共 ${playerHand.length} 张`);
+        socket.emit('your_hand', {
+          cards: playerHand,
+          playerCount: playerHand.length
+        });
+      }
+      
+      // 同步游戏日志给重连的玩家
+      const gameLogs = gameRoomManager.getGameLogs(reconnectRoom.id);
+      if (gameLogs && gameLogs.length > 0) {
+        console.log(`📋 向重连玩家 ${reconnectPlayer.username} 同步游戏日志，共 ${gameLogs.length} 条`);
+        socket.emit('game_logs_sync', {
+          logs: gameLogs
+        });
+      }
+      
       // 向房间内所有玩家广播player_reconnected事件
       io.to(reconnectRoom.id).emit('player_reconnected', {
         playerId: reconnectPlayer.userId,
@@ -337,6 +356,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               gameRoomManager.addGameLog(roomId, `🎯 轮到 ${firstPlayerName} 先出牌`, 'system');
               
               // 向房间内所有玩家广播游戏开始
+              console.log(`🚀 开始广播game_started事件到房间 ${roomId}，房间内玩家数量: ${room.players.length}`);
               io.to(roomId).emit('game_started', {
                 success: true,
                 message: '房间满员，游戏自动开始！',
@@ -349,6 +369,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   gamePhase: gameStartResult.gameState.gamePhase,
                   currentLevel: gameStartResult.gameState.currentLevel
                 }
+              });
+              console.log(`✅ game_started事件已广播到房间 ${roomId}`);
+              
+              // 广播房间状态更新，确保所有玩家看到房间已满且游戏开始
+              console.log(`🔄 广播房间状态更新: status=playing, playerCount=${room.players.length}`);
+              io.to(roomId).emit('room_update', {
+                type: 'auto_game_started',
+                roomId: room.id,
+                room: {
+                  ...room,
+                  status: 'playing' // 确保状态为playing
+                },
+                players: room.players,
+                status: 'playing',
+                hostUserId: room.hostUserId,
+                playerCount: room.players.length,
+                maxPlayers: room.maxPlayers,
+                message: '游戏已开始！'
               });
               
               console.log(`房间 ${roomId} 游戏自动开始！`);
