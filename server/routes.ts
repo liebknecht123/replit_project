@@ -288,7 +288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error(`创建房间失败: ${error.message}`);
         socket.emit('room_created', {
           success: false,
-          message: '创建房间失败，请稍后重试'
+          message: error.message || '创建房间失败，请稍后重试'
         });
       }
     });
