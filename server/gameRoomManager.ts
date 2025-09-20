@@ -364,7 +364,16 @@ export class GameRoomManager {
     
     // 创建游戏状态
     const playerIds = room.players.map(p => p.userId);
-    const hands = dealCards(playerIds.slice(0, 4)); // 确保最多4个玩家
+    console.log(`房间 ${roomId} 开始游戏，玩家列表: [${playerIds.join(', ')}]`);
+    
+    let hands: Map<number, import('./gameLogic').Card[]>;
+    try {
+      hands = dealCards(playerIds.slice(0, 4)); // 确保最多4个玩家
+      console.log(`房间 ${roomId} 发牌成功，共${hands.size}个玩家获得手牌`);
+    } catch (error: any) {
+      console.error(`房间 ${roomId} 发牌失败: ${error.message}`);
+      return { success: false, message: '发牌失败：' + error.message };
+    }
     
     // 在发牌逻辑之后，执行以下操作：
     // 1. 获取房间内所有玩家的ID列表

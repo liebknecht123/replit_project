@@ -69,34 +69,44 @@ export function shufflePlayerOrder(playerIds: number[]): number[] {
   return shuffled;
 }
 
-// 发牌给4个玩家 (每人27张)
+// 发牌给玩家 (支持2-4个玩家)
 export function dealCards(playerIds: number[]): Map<number, Card[]> {
-  if (playerIds.length !== 4) {
-    throw new Error('掼蛋需要恰好4个玩家');
+  if (playerIds.length < 2 || playerIds.length > 4) {
+    throw new Error(`掼蛋需要2-4个玩家，当前有${playerIds.length}个玩家`);
   }
   
   const deck = createDeck();
   const shuffledDeck = shuffleDeck(deck);
   const hands = new Map<number, Card[]>();
   
+  console.log(`开始发牌给${playerIds.length}个玩家: [${playerIds.join(', ')}]`);
+  
   // 初始化每个玩家的手牌
   playerIds.forEach(playerId => {
     hands.set(playerId, []);
   });
   
-  // 轮流发牌，每人27张
-  for (let i = 0; i < 108; i++) {
-    const playerIndex = i % 4;
+  // 计算每个玩家应该分到的牌数
+  const cardsPerPlayer = Math.floor(108 / playerIds.length);
+  const totalCardsToDistribute = cardsPerPlayer * playerIds.length;
+  
+  console.log(`每个玩家将获得${cardsPerPlayer}张牌，总共分发${totalCardsToDistribute}张牌`);
+  
+  // 轮流发牌
+  for (let i = 0; i < totalCardsToDistribute; i++) {
+    const playerIndex = i % playerIds.length;
     const playerId = playerIds[playerIndex];
     const playerHand = hands.get(playerId)!;
     playerHand.push(shuffledDeck[i]);
   }
   
-  // 对每个玩家的手牌进行排序
+  // 对每个玩家的手牌进行排序并记录
   hands.forEach((hand, playerId) => {
     hand.sort((a, b) => a.value - b.value);
+    console.log(`玩家${playerId}分到${hand.length}张牌`);
   });
   
+  console.log('发牌完成！');
   return hands;
 }
 
