@@ -59,6 +59,12 @@ export class GameRoomManager {
 
   // 创建新房间
   async createRoom(socketId: string, user: User, roomName?: string): Promise<ActiveRoom> {
+    // 检查用户是否已经创建了房间
+    const existingHostRoom = Array.from(this.rooms.values()).find(room => room.hostUserId === user.id);
+    if (existingHostRoom) {
+      throw new Error(`您已经创建了房间 ${existingHostRoom.id}，每个玩家只能创建一个房间`);
+    }
+    
     const roomId = this.generateRoomId();
     const displayName = roomName || `${user.username}的房间`;
     
