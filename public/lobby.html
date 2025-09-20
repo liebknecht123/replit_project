@@ -467,8 +467,9 @@
                 
                 // 恢复游戏状态
                 if (data.gameState) {
-                    log(`🎮 已恢复游戏状态，当前轮到: 玩家${data.gameState.currentPlayerId}`);
-                    currentPlayerId = data.gameState.currentPlayerId;
+                    log(`🎮 已恢复游戏状态，当前轮到: 玩家${data.gameState.currentPlayer}`);
+                    currentPlayerId = data.gameState.currentPlayer;
+                    gameState = data.gameState;
                     updateTurnBasedButtons();
                     updateGameState(data.gameState);
                 }
@@ -578,13 +579,31 @@
 
             let html = '';
             rooms.forEach(room => {
+                // 获取房间状态显示文本
+                const statusText = room.status === 'playing' ? '游戏中' : 
+                                 room.status === 'waiting' ? '等待中' : 
+                                 room.status === 'finished' ? '已结束' : room.status;
+                
+                // 显示玩家昵称（如果有的话）
+                let playerNamesText = '';
+                if (room.playerNames && room.playerNames.length > 0) {
+                    playerNamesText = `<br><small>玩家: ${room.playerNames.join(', ')}</small>`;
+                }
+                
+                // 判断是否可以加入（游戏未开始且未满员）
+                const canJoin = room.status === 'waiting' && room.playerCount < room.maxPlayers;
+                const joinButton = canJoin ? 
+                    `<button onclick="quickJoinRoom('${room.id}')">快速加入</button>` : 
+                    '<button disabled>无法加入</button>';
+                
                 html += `
                     <div class="room-item">
                         <div>
                             <strong>${room.name}</strong> (${room.id})<br>
-                            <small>房主: ${room.host} | 人数: ${room.playerCount}/${room.maxPlayers} | 状态: ${room.status}</small>
+                            <small>房主: ${room.host} | 人数: ${room.playerCount}/${room.maxPlayers} | 状态: ${statusText}</small>
+                            ${playerNamesText}
                         </div>
-                        <button onclick="quickJoinRoom('${room.id}')">快速加入</button>
+                        ${joinButton}
                     </div>
                 `;
             });
@@ -689,7 +708,11 @@
         function updateGameState(data) {
             if (data.gameState) {
                 gameState = data.gameState;
+            } else if (data) {
+                // 如果直接传入gameState对象
+                gameState = data;
             }
+            
             if (data.currentPlayer !== undefined) {
                 if (gameState) gameState.currentPlayer = data.currentPlayer;
             }
@@ -704,14 +727,19 @@
                 return;
             }
 
-            const isMyTurn = gameState.currentPlayer && currentToken && 
-                            gameState.players && gameState.players.includes(gameState.currentPlayer);
+            // 检查是否轮到我出牌
+            const isMyTurn = gameState.currentPlayer && currentUserInfo && 
+                            gameState.currentPlayer === currentUserInfo.id;
 
+            // 显示游戏状态
+            const statusText = gameState.gamePhase === 'playing' ? '游戏进行中' : gameState.gamePhase || '未知状态';
+            
             gameStateDiv.innerHTML = `
-                <p><strong>游戏阶段:</strong> ${gameState.gamePhase}</p>
-                <p><strong>当前玩家:</strong> ${gameState.currentPlayer}</p>
+                <p><strong>游戏状态:</strong> ${statusText}</p>
+                <p><strong>当前出牌玩家ID:</strong> ${gameState.currentPlayer}</p>
                 <p><strong>轮到我出牌:</strong> ${isMyTurn ? '是' : '否'}</p>
                 <p><strong>玩家数量:</strong> ${gameState.players ? gameState.players.length : 0}</p>
+                <p><strong>当前级别:</strong> ${gameState.currentLevel || '未知'}</p>
             `;
         }
 

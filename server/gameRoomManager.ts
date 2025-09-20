@@ -302,6 +302,7 @@ export class GameRoomManager {
     maxPlayers: number;
     status: string;
     host: string;
+    playerNames: string[];
     createdAt: Date;
   }> {
     return Array.from(this.rooms.values()).map(room => ({
@@ -311,6 +312,7 @@ export class GameRoomManager {
       maxPlayers: room.maxPlayers,
       status: room.status,
       host: room.players.find(p => p.isHost)?.username || 'Unknown',
+      playerNames: room.players.map(p => p.username),
       createdAt: room.createdAt
     }));
   }
@@ -360,7 +362,7 @@ export class GameRoomManager {
     }
     
     // 导入游戏逻辑
-    const { dealCards, shufflePlayerOrder } = await import('./gameLogic');
+    const { dealCards, shufflePlayerOrder, selectFirstPlayer } = await import('./gameLogic');
     
     // 创建游戏状态
     const playerIds = room.players.map(p => p.userId);
@@ -380,14 +382,18 @@ export class GameRoomManager {
     const allPlayerIds = playerIds;
     // 2. 随机打乱这个ID列表的顺序
     const playOrder = shufflePlayerOrder(allPlayerIds);
-    // 3. 将currentPlayerIndex初始化为0
-    const currentPlayerIndex = 0;
+    // 3. 随机选择首出玩家
+    const firstPlayer = selectFirstPlayer(allPlayerIds);
+    // 4. 找到首出玩家在playOrder中的索引
+    const currentPlayerIndex = playOrder.indexOf(firstPlayer);
+    
+    console.log(`房间 ${roomId} 随机选择首出玩家: ${firstPlayer}，在playOrder中的索引: ${currentPlayerIndex}`);
     
     const gameState: import('./gameLogic').GameState = {
       roomId: roomId,
       players: allPlayerIds,
       hands: hands,
-      currentPlayer: playOrder[currentPlayerIndex], // 使用playOrder[0]作为当前玩家
+      currentPlayer: firstPlayer, // 使用随机选择的首出玩家
       playOrder: playOrder, // 固定的玩家ID顺序
       currentPlayerIndex: currentPlayerIndex, // 指向playOrder数组的当前回合索引
       lastPlay: null,

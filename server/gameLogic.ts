@@ -69,6 +69,12 @@ export function shufflePlayerOrder(playerIds: number[]): number[] {
   return shuffled;
 }
 
+// 随机选择首出玩家
+export function selectFirstPlayer(playerIds: number[]): number {
+  const randomIndex = Math.floor(Math.random() * playerIds.length);
+  return playerIds[randomIndex];
+}
+
 // 发牌给4个玩家 (每人27张)
 export function dealCards(playerIds: number[]): Map<number, Card[]> {
   if (playerIds.length !== 4) {
