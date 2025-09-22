@@ -205,7 +205,7 @@
             
             // 根据房间状态和人数动态控制开始游戏按钮
             updateStartGameButton();
-            document.getElementById('playCardsBtn').disabled = !connected || !currentRoom;
+            // 出牌按钮状态由 updateTurnBasedButtons() 管理
         }
         
         // 更新回合制按钮状态
@@ -228,12 +228,22 @@
                 passTurnBtn.disabled = !isMyTurn;
                 passTurnBtn.textContent = isMyTurn ? '过牌' : '等待中...';
                 
+                // 更新出牌按钮状态
+                const playCardsBtn = document.getElementById('playCardsBtn');
+                playCardsBtn.disabled = !isMyTurn;
+                
                 // 隐藏开始游戏按钮
                 startGameBtn.style.display = 'none';
+                
+                log(`🎯 回合状态更新: isMyTurn=${isMyTurn}, currentPlayerId=${currentPlayerId}, myId=${currentUserInfo.id}`);
             } else {
                 // 游戏未开始，隐藏过牌按钮
                 passTurnBtn.style.display = 'none';
                 startGameBtn.style.display = 'inline-block';
+                
+                // 禁用出牌按钮
+                const playCardsBtn = document.getElementById('playCardsBtn');
+                playCardsBtn.disabled = true;
             }
         }
 
