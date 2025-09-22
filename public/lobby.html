@@ -121,8 +121,6 @@
             </div>
             <div>
                 <button id="startGameBtn" onclick="startGame()" disabled>开始游戏</button>
-                <button id="passTurnBtn" onclick="passTurn()" style="display: none; margin-left: 10px;" disabled>过牌</button>
-                <button id="playCardsBtn" onclick="playCards()" disabled>出牌测试</button>
             </div>
         </div>
     </div>
@@ -159,6 +157,23 @@
             <h3>我的手牌</h3>
             <div id="playerHand">
                 <p>未发牌</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="section">
+            <h3>出牌操作</h3>
+            <div id="selectedCards" style="min-height: 60px; background: #f8f9fa; border: 2px dashed #ccc; border-radius: 4px; padding: 10px; margin-bottom: 10px;">
+                <p style="color: #666; margin: 0;">请选择要出的牌（点击手牌选择）</p>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <span id="cardTypeDisplay" style="font-weight: bold; color: #007bff;">牌型: 未选择</span>
+            </div>
+            <div>
+                <button id="confirmPlayBtn" onclick="confirmPlay()" disabled style="background: #28a745; margin-right: 10px;">确认出牌</button>
+                <button id="clearSelectionBtn" onclick="clearSelection()" disabled>清空选择</button>
+                <button id="passTurnBtn" onclick="passTurn()" style="display: none; margin-left: 10px;" disabled>过牌</button>
             </div>
         </div>
     </div>
@@ -228,12 +243,11 @@
                 passTurnBtn.disabled = !isMyTurn;
                 passTurnBtn.textContent = isMyTurn ? '过牌' : '等待中...';
                 
-                // 更新出牌按钮状态
-                const playCardsBtn = document.getElementById('playCardsBtn');
-                playCardsBtn.disabled = !isMyTurn;
-                
                 // 隐藏开始游戏按钮
                 startGameBtn.style.display = 'none';
+                
+                // 更新出牌按钮状态
+                updatePlayButtons();
                 
                 log(`🎯 回合状态更新: isMyTurn=${isMyTurn}, currentPlayerId=${currentPlayerId}, myId=${currentUserInfo.id}`);
             } else {
@@ -241,9 +255,8 @@
                 passTurnBtn.style.display = 'none';
                 startGameBtn.style.display = 'inline-block';
                 
-                // 禁用出牌按钮
-                const playCardsBtn = document.getElementById('playCardsBtn');
-                playCardsBtn.disabled = true;
+                // 重置选择和按钮状态
+                clearSelection();
             }
         }
 
@@ -436,13 +449,32 @@
 
             // 监听出牌事件
             ioSocket.on('cards_played', function(data) {
-                log(`🃏 ${data.playerName} 出牌: ${data.cards.length}张，剩余${data.remainingCards}张`);
+                log(`🃏 ${data.message || data.playerName + ' 出牌: ' + data.cards.length + '张，剩余' + data.remainingCards + '张'}`);
+                
+                // 如果是当前玩家出牌成功，更新手牌显示
+                const currentUserInfo = getCurrentUserInfo();
+                if (currentUserInfo && data.playerId === currentUserInfo.id) {
+                    // 从手牌中移除已出的牌
+                    const playedCards = data.cards;
+                    playedCards.forEach(playedCard => {
+                        const cardIndex = playerHand.findIndex(handCard => 
+                            handCard.suit === playedCard.suit && handCard.rank === playedCard.rank
+                        );
+                        if (cardIndex >= 0) {
+                            playerHand.splice(cardIndex, 1);
+                        }
+                    });
+                    displayPlayerHand(playerHand);
+                    clearSelection();
+                }
             });
 
             // 监听出牌结果
             ioSocket.on('play_cards_result', function(data) {
                 if (data.success) {
                     log(`✅ ${data.message}`);
+                    // 出牌成功后清空选择
+                    clearSelection();
                 } else {
                     log(`❌ 出牌失败: ${data.message}`);
                     alert(data.message);
@@ -657,6 +689,7 @@
         // 游戏相关变量
         let gameState = null;
         let playerHand = [];
+        let selectedCards = []; // 当前选中的牌
         let currentPlayerId = null; // 当前轮到的玩家ID
 
         // 过牌功能
@@ -691,28 +724,7 @@
             socket.emit('start_game', {});
         }
 
-        // 出牌测试 (出第一张牌)
-        function playCards() {
-            if (!socket || !socket.connected) {
-                alert('请先连接WebSocket');
-                return;
-            }
-
-            if (!currentRoom || !gameState) {
-                alert('游戏尚未开始');
-                return;
-            }
-
-            if (playerHand.length === 0) {
-                alert('没有手牌');
-                return;
-            }
-
-            // 简单测试：出第一张牌
-            const cardsToPlay = [playerHand[0]];
-            log(`🎯 出牌: ${cardsToPlay.length}张牌`);
-            socket.emit('play_cards', { cards: cardsToPlay });
-        }
+        // 已移除旧的出牌测试功能，现在使用新的牌选择系统
 
         // 更新游戏状态显示
         function updateGameState(data) {
@@ -775,7 +787,16 @@
             playerHand.forEach((card, index) => {
                 const suitSymbol = getSuitSymbol(card.suit);
                 const rankText = getRankText(card.rank);
-                cardsHtml += `<span style="background: white; border: 1px solid #ccc; padding: 3px 6px; border-radius: 3px; font-size: 12px;">
+                const isSelected = selectedCards.some(selected => 
+                    selected.suit === card.suit && selected.rank === card.rank && selected.index === index
+                );
+                const cardStyle = isSelected 
+                    ? "background: #007bff; color: white; border: 2px solid #0056b3; transform: translateY(-5px);" 
+                    : "background: white; border: 1px solid #ccc;";
+                
+                cardsHtml += `<span onclick="toggleCardSelection(${index})" 
+                    style="${cardStyle} padding: 8px 12px; border-radius: 6px; font-size: 14px; cursor: pointer; transition: all 0.2s; user-select: none;"
+                    data-card-index="${index}">
                     ${suitSymbol}${rankText}
                 </span>`;
             });
@@ -783,6 +804,148 @@
             cardsHtml += '</div>';
             cardsHtml += `<p><strong>总计:</strong> ${playerHand.length}张牌</p>`;
             handDiv.innerHTML = cardsHtml;
+        }
+
+        // 切换牌的选择状态
+        function toggleCardSelection(index) {
+            if (!gameState || gameState.gamePhase !== 'playing') {
+                return; // 游戏未开始时不能选牌
+            }
+
+            const card = playerHand[index];
+            if (!card) return;
+
+            // 检查是否已选中
+            const selectedIndex = selectedCards.findIndex(selected => 
+                selected.suit === card.suit && selected.rank === card.rank && selected.index === index
+            );
+
+            if (selectedIndex >= 0) {
+                // 取消选择
+                selectedCards.splice(selectedIndex, 1);
+            } else {
+                // 添加选择
+                selectedCards.push({ ...card, index: index });
+            }
+
+            // 更新显示
+            displayPlayerHand(playerHand);
+            displaySelectedCards();
+            updateCardType();
+            updatePlayButtons();
+        }
+
+        // 显示选中的牌
+        function displaySelectedCards() {
+            const selectedDiv = document.getElementById('selectedCards');
+            
+            if (selectedCards.length === 0) {
+                selectedDiv.innerHTML = '<p style="color: #666; margin: 0;">请选择要出的牌（点击手牌选择）</p>';
+                return;
+            }
+
+            let selectedHtml = '<p style="margin: 0 0 10px 0;"><strong>已选择的牌:</strong></p>';
+            selectedHtml += '<div style="display: flex; flex-wrap: wrap; gap: 5px;">';
+            
+            selectedCards.forEach((card, index) => {
+                const suitSymbol = getSuitSymbol(card.suit);
+                const rankText = getRankText(card.rank);
+                selectedHtml += `<span style="background: #007bff; color: white; border: 1px solid #0056b3; padding: 6px 10px; border-radius: 4px; font-size: 12px;">
+                    ${suitSymbol}${rankText}
+                </span>`;
+            });
+            
+            selectedHtml += '</div>';
+            selectedDiv.innerHTML = selectedHtml;
+        }
+
+        // 更新牌型显示
+        function updateCardType() {
+            const typeDisplay = document.getElementById('cardTypeDisplay');
+            
+            if (selectedCards.length === 0) {
+                typeDisplay.textContent = '牌型: 未选择';
+                typeDisplay.style.color = '#007bff';
+                return;
+            }
+
+            // 这里可以调用服务器验证牌型，暂时显示基本信息
+            let cardType = '未知牌型';
+            let isValid = false;
+
+            if (selectedCards.length === 1) {
+                cardType = '单牌';
+                isValid = true;
+            } else if (selectedCards.length === 2) {
+                if (selectedCards[0].rank === selectedCards[1].rank) {
+                    cardType = '对子';
+                    isValid = true;
+                }
+            } else if (selectedCards.length === 3) {
+                if (selectedCards.every(card => card.rank === selectedCards[0].rank)) {
+                    cardType = '三张';
+                    isValid = true;
+                }
+            } else if (selectedCards.length === 4) {
+                if (selectedCards.every(card => card.rank === selectedCards[0].rank)) {
+                    cardType = '四张炸弹';
+                    isValid = true;
+                }
+            }
+
+            typeDisplay.textContent = `牌型: ${cardType}`;
+            typeDisplay.style.color = isValid ? '#28a745' : '#dc3545';
+        }
+
+        // 更新出牌按钮状态
+        function updatePlayButtons() {
+            const confirmBtn = document.getElementById('confirmPlayBtn');
+            const clearBtn = document.getElementById('clearSelectionBtn');
+            
+            const hasSelection = selectedCards.length > 0;
+            const currentUserInfo = getCurrentUserInfo();
+            const isMyTurn = gameState && gameState.gamePhase === 'playing' && 
+                            currentPlayerId && currentUserInfo && 
+                            currentPlayerId == currentUserInfo.id;
+
+            confirmBtn.disabled = !hasSelection || !isMyTurn;
+            clearBtn.disabled = !hasSelection;
+        }
+
+        // 确认出牌
+        function confirmPlay() {
+            if (selectedCards.length === 0) {
+                alert('请先选择要出的牌');
+                return;
+            }
+
+            if (!socket || !socket.connected) {
+                alert('请先连接WebSocket');
+                return;
+            }
+
+            if (!currentRoom || !gameState) {
+                alert('游戏尚未开始');
+                return;
+            }
+
+            // 转换选中的牌为服务器格式（移除index字段）
+            const cardsToPlay = selectedCards.map(card => ({
+                suit: card.suit,
+                rank: card.rank
+            }));
+
+            log(`🎯 出牌: ${selectedCards.length}张牌`);
+            socket.emit('play_cards', { cards: cardsToPlay });
+        }
+
+        // 清空选择
+        function clearSelection() {
+            selectedCards = [];
+            displayPlayerHand(playerHand);
+            displaySelectedCards();
+            updateCardType();
+            updatePlayButtons();
         }
 
         // 获取花色符号

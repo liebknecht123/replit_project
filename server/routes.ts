@@ -581,14 +581,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // 检查游戏是否结束
         const gameResult = checkGameFinished(gameState.hands, gameState.finishedPlayers);
 
+        // 格式化牌面信息
+        const cardsDisplay = cards.map((card: Card) => {
+          const suitSymbols: { [key: string]: string } = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠', joker: '🃏' };
+          const rankNames = ['', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', '小王', '大王'];
+          return `${suitSymbols[card.suit] || '?'}${rankNames[card.rank] || card.rank}`;
+        }).join(' ');
+
+        // 添加游戏日志
+        gameRoomManager.addGameLog(roomId!, 
+          `${socket.userInfo.username} 出牌: ${cardsDisplay} (${playType})，剩余${newHand.length}张`, 
+          'game', socket.userId, socket.userInfo.username);
+
         // 广播出牌结果
         io.to(roomId!).emit('cards_played', {
           playerId: socket.userInfo.id,
           playerName: socket.userInfo.username,
           cards: cards,
+          cardsDisplay: cardsDisplay,
           playType: gameState.lastPlay.playType,
           remainingCards: newHand.length,
-          message: `${socket.userInfo.username} 出牌`
+          message: `${socket.userInfo.username} 出牌: ${cardsDisplay} (${playType})`
         });
 
         socket.emit('play_cards_result', {
