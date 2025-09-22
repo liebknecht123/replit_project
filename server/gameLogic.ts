@@ -252,7 +252,7 @@ export function getPlayType(cards: Card[], currentLevel: number = 2): GuanDanCar
   }
   
   // 三带两：三张+一对
-  if (cards.length === 5 && isTripleWithPair(cards)) {
+  if (cards.length === 5 && isTripleWithPair(cards, currentLevel)) {
     return 'triple_with_pair';
   }
   
@@ -291,7 +291,8 @@ function isTriplePair(cards: Card[], currentLevel: number): boolean {
   
   // 必须是3个不同的rank，每个2张
   const ranks = Array.from(groups.keys()).sort((a, b) => a - b);
-  if (ranks.length !== 3 || !groups.values().every(count => count === 2)) {
+  const counts = Array.from(groups.values());
+  if (ranks.length !== 3 || !counts.every(count => count === 2)) {
     return false;
   }
   
@@ -311,7 +312,8 @@ function isSteelPlate(cards: Card[], currentLevel: number): boolean {
   
   // 必须是2个不同的rank，每个3张
   const ranks = Array.from(groups.keys()).sort((a, b) => a - b);
-  if (ranks.length !== 2 || !groups.values().every(count => count === 3)) {
+  const counts = Array.from(groups.values());
+  if (ranks.length !== 2 || !counts.every(count => count === 3)) {
     return false;
   }
   
@@ -319,17 +321,59 @@ function isSteelPlate(cards: Card[], currentLevel: number): boolean {
   return isRankSequential(ranks, currentLevel);
 }
 
-// 检查是否为三带两
-function isTripleWithPair(cards: Card[]): boolean {
+// 支持逢人配的通配符分配
+function resolveWildcardsForSet(cards: Card[], currentLevel: number): { resolved: boolean; distribution: Map<number, number> } {
+  const levelRank = currentLevel === 14 ? 1 : currentLevel;
+  const groups = new Map<number, number>();
+  let wildcardCount = 0;
+  
+  cards.forEach(card => {
+    if (card.rank === levelRank && card.suit === 'hearts') {
+      wildcardCount++; // 逢人配（等级红桃）
+    } else {
+      groups.set(card.rank, (groups.get(card.rank) || 0) + 1);
+    }
+  });
+  
+  // 尝试将通配符分配给现有的rank
+  const ranks = Array.from(groups.keys()).sort((a, b) => groups.get(b)! - groups.get(a)!);
+  
+  for (const rank of ranks) {
+    while (wildcardCount > 0) {
+      const currentCount = groups.get(rank) || 0;
+      if (currentCount < 3) {
+        groups.set(rank, currentCount + 1);
+        wildcardCount--;
+      } else {
+        break;
+      }
+    }
+  }
+  
+  return { resolved: wildcardCount === 0, distribution: groups };
+}
+
+// 检查是否为三带两（支持逢人配）
+function isTripleWithPair(cards: Card[], currentLevel: number = 2): boolean {
   if (cards.length !== 5) return false;
   
+  // 先尝试没有逢人配的情况
   const groups = new Map<number, number>();
   cards.forEach(card => {
     groups.set(card.rank, (groups.get(card.rank) || 0) + 1);
   });
   
   const counts = Array.from(groups.values()).sort();
-  return counts.length === 2 && counts[0] === 2 && counts[1] === 3;
+  if (counts.length === 2 && counts[0] === 2 && counts[1] === 3) {
+    return true;
+  }
+  
+  // 尝试用逢人配组成三带二
+  const { resolved, distribution } = resolveWildcardsForSet(cards, currentLevel);
+  if (!resolved) return false;
+  
+  const resolvedCounts = Array.from(distribution.values()).sort();
+  return resolvedCounts.length === 2 && resolvedCounts[0] === 2 && resolvedCounts[1] === 3;
 }
 
 // 检查rank是否连续（考虑逢人配）
@@ -425,11 +469,53 @@ export function getCardTypePriority(cardType: GuanDanCardType): number {
 
 // 比较相同牌型的大小 (单张、对子等)
 function comparePlayValue(newPlay: Card[], lastPlay: Card[], currentLevel: number): boolean {
-  // 对于单张、对子、三张等，比较主要牌的点数
+  const newPlayType = getPlayType(newPlay, currentLevel);
+  
+  // 对于三张和三带二，比较成型后的基准rank
+  if (newPlayType === 'triple' || newPlayType === 'triple_with_pair') {
+    const newBaseRank = extractSetBaseRank(newPlay, currentLevel);
+    const lastBaseRank = extractSetBaseRank(lastPlay, currentLevel);
+    
+    // 计算基准rank的实际大小值
+    const newBaseValue = calculateCardValue(newBaseRank, currentLevel, 'clubs'); // 使用非红桃花色避免逢人配干扰
+    const lastBaseValue = calculateCardValue(lastBaseRank, currentLevel, 'clubs');
+    
+    return newBaseValue > lastBaseValue;
+  }
+  
+  // 对于其他牌型，比较主要牌的点数
   const newValue = getMainCardValue(newPlay);
   const lastValue = getMainCardValue(lastPlay);
   
   return newValue > lastValue;
+}
+
+// 提取三张牌或三带二的基准rank（支持逢人配）
+function extractSetBaseRank(cards: Card[], currentLevel: number): number {
+  const groups = new Map<number, number>();
+  
+  cards.forEach(card => {
+    groups.set(card.rank, (groups.get(card.rank) || 0) + 1);
+  });
+  
+  // 找到出现3次的rank，如果没有则用逢人配补齐
+  for (const [rank, count] of Array.from(groups.entries())) {
+    if (count >= 3) {
+      return rank;
+    }
+  }
+  
+  // 使用逢人配补齐的情况，找到最多数量的rank
+  const { resolved, distribution } = resolveWildcardsForSet(cards, currentLevel);
+  if (resolved) {
+    for (const [rank, count] of Array.from(distribution.entries())) {
+      if (count >= 3) {
+        return rank;
+      }
+    }
+  }
+  
+  return cards[0].rank; // fallback
 }
 
 // 获取牌型的主要点数
