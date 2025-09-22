@@ -448,13 +448,13 @@ export function canBeatLastPlay(newPlay: Card[], lastPlay: PlayedCards | null, c
 // 获取牌型优先级（数字越大越大）
 export function getCardTypePriority(cardType: GuanDanCardType): number {
   const priorities = {
-    'four_kings': 100,      // 四王（最大）
-    'bomb_8': 90,
-    'bomb_7': 89, 
-    'bomb_6': 88,
-    'straight_flush': 87,   // 同花顺
-    'bomb_5': 86,
-    'bomb_4': 85,
+    'four_kings': 100,      // 天王炸（最大）
+    'bomb_8': 90,           // 8张炸弹
+    'bomb_7': 89,           // 7张炸弹
+    'straight_flush': 88.5, // 同花顺（大于6张炸弹）
+    'bomb_6': 88,           // 6张炸弹
+    'bomb_5': 86,           // 5张炸弹
+    'bomb_4': 85,           // 4张炸弹
     'triple_pair': 10,      // 其他牌型
     'steel_plate': 10,
     'straight': 10,
