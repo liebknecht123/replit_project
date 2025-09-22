@@ -384,6 +384,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
               console.log(`✅ game_started事件已广播到房间 ${roomId}`);
               
+              // 向每个玩家单独发送他们的手牌
+              room.players.forEach(player => {
+                const playerHand = gameStartResult.gameState.hands.get(player.userId) || [];
+                if (player.socketId) {
+                  io.to(player.socketId).emit('your_hand', {
+                    cards: playerHand,
+                    playerCount: playerHand.length
+                  });
+                  console.log(`🃏 向玩家 ${player.username} 发送手牌，共 ${playerHand.length} 张`);
+                }
+              });
+              
               // 广播房间状态更新，确保所有玩家看到房间已满且游戏开始
               console.log(`🔄 广播房间状态更新: status=playing, playerCount=${room.players.length}`);
               io.to(roomId).emit('room_update', {
