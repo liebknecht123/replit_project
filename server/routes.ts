@@ -314,6 +314,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: `房间 ${room.id} 创建成功`
         });
 
+        // 向所有连接的客户端广播房间列表更新
+        const allRooms = gameRoomManager.getAllRooms();
+        io.emit('global_rooms_update', {
+          type: 'room_created',
+          rooms: allRooms,
+          message: `新房间 "${room.name}" 已创建`
+        });
+
         console.log(`房间创建成功: ${room.id}, 创建者: ${socket.username}`);
       } catch (error: any) {
         console.error(`创建房间失败: ${error.message}`);
@@ -412,6 +420,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 maxPlayers: room.maxPlayers,
                 message: '游戏已开始！'
               });
+
+              // 向所有连接的客户端广播房间列表更新（游戏开始）
+              const allRooms = gameRoomManager.getAllRooms();
+              io.emit('global_rooms_update', {
+                type: 'game_started',
+                rooms: allRooms,
+                message: `房间 "${room.name}" 的游戏已开始`
+              });
               
               console.log(`房间 ${roomId} 游戏自动开始！`);
             } else {
@@ -429,6 +445,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               playerCount: room.players.length,
               maxPlayers: room.maxPlayers,
               message: `${socket.userInfo.username} 加入了房间`
+            });
+
+            // 向所有连接的客户端广播房间列表更新
+            const allRooms = gameRoomManager.getAllRooms();
+            io.emit('global_rooms_update', {
+              type: 'player_joined',
+              rooms: allRooms,
+              message: `${socket.userInfo.username} 加入了房间 "${room.name}"`
             });
           }
         } else {
@@ -769,6 +793,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           playerId: player.userId,
           playerName: player.username,
           message: `${player.username} 断线了，但仍在房间中等待重连`
+        });
+        
+        // 向所有连接的客户端广播房间列表更新（玩家断线）
+        const allRooms = gameRoomManager.getAllRooms();
+        io.emit('global_rooms_update', {
+          type: 'player_disconnected',
+          rooms: allRooms,
+          message: `${player.username} 从房间 "${room.name}" 断线`
         });
         
         console.log(`玩家 ${player.username} 断线，房间 ${room.id} 中其他玩家已收到通知`);
