@@ -3,6 +3,21 @@ import { db } from "./db";
 import { gameRooms, gameRoomPlayers, users } from "@shared/schema";
 import type { User, GameRoom, GameRoomPlayer } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
+import { 
+  GameState, 
+  Card, 
+  PlayedCards,
+  GuanDanCardType,
+  dealCards, 
+  selectFirstPlayer, 
+  createTeams,
+  shufflePlayerOrder,
+  checkGameFinished,
+  calculateLevelChange,
+  getNextPlayer,
+  shouldResetRound,
+  getLevelDisplayName
+} from './gameLogic';
 
 interface ConnectedPlayer {
   socketId: string;
@@ -28,11 +43,13 @@ interface ActiveRoom {
   hostUserId: number;
   name: string;
   maxPlayers: number;
-  status: string;
+  status: 'waiting' | 'playing' | 'finished' | 'tribute';
   players: ConnectedPlayer[];
   createdAt: Date;
-  gameState?: import('./gameLogic').GameState; // 游戏状态
-  gameLogs: GameLogEntry[];  // 新增：游戏日志历史
+  gameState?: GameState; // 游戏状态
+  gameLogs: GameLogEntry[];  // 游戏日志历史
+  currentLevel: number; // 当前等级
+  gameRound: number; // 第几局游戏
 }
 
 export class GameRoomManager {
@@ -103,7 +120,9 @@ export class GameRoomManager {
         }
       ],
       createdAt: new Date(),
-      gameLogs: []  // 初始化空日志数组
+      gameLogs: [],  // 初始化空日志数组
+      currentLevel: 2, // 从2开始
+      gameRound: 1 // 第1局
     };
 
     this.rooms.set(roomId, room);
@@ -200,7 +219,7 @@ export class GameRoomManager {
         hostUserId: room.hostUserId,
         name: room.name,
         maxPlayers: parseInt(room.maxPlayers),
-        status: room.status,
+        status: room.status as 'waiting' | 'playing' | 'finished' | 'tribute',
         players: playersData.map(p => ({
           socketId: this.userSockets.get(p.userId) || '',
           userId: p.userId,
@@ -211,7 +230,9 @@ export class GameRoomManager {
           isConnected: this.userSockets.has(p.userId)  // 新增：根据是否有socket来判断连接状态
         })),
         createdAt: room.createdAt || new Date(),
-        gameLogs: []  // 从数据库加载时初始化空日志数组
+        gameLogs: [],  // 从数据库加载时初始化空日志数组
+        currentLevel: 2, // 默认从2开始
+        gameRound: 1 // 默认第1局
       };
 
       this.rooms.set(roomId, activeRoom);
@@ -395,9 +416,13 @@ export class GameRoomManager {
     
     console.log(`房间 ${roomId} 随机选择首出玩家: ${firstPlayer}，在playOrder中的索引: ${currentPlayerIndex}`);
     
-    const gameState: import('./gameLogic').GameState = {
+    // 创建完整的掼蛋游戏状态
+    const teams = createTeams(allPlayerIds);
+    const currentLevel = room.currentLevel || 2;
+    const gameState: GameState = {
       roomId: roomId,
       players: allPlayerIds,
+      teams: teams,
       hands: hands,
       currentPlayer: firstPlayer, // 使用随机选择的首出玩家
       playOrder: playOrder, // 固定的玩家ID顺序
@@ -405,7 +430,13 @@ export class GameRoomManager {
       lastPlay: null,
       tableCards: [],
       gamePhase: 'playing',
-      currentLevel: 2 // 从2开始
+      currentLevel: currentLevel,
+      levelProgress: { team1: currentLevel, team2: currentLevel },
+      gameRound: room.gameRound || 1,
+      finishedPlayers: [],
+      passedPlayers: new Set<number>(),
+      consecutivePasses: 0,
+      isFirstPlay: true
     };
     
     // 更新房间状态

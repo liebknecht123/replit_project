@@ -503,3 +503,103 @@ export function shouldResetRound(passedPlayers: Set<number>, playOrder: number[]
 export function isPlayerTurn(playerId: number, currentPlayer: number): boolean {
   return playerId === currentPlayer;
 }
+
+// 创建队伍配置（掼蛋对家规则）
+export function createTeams(playerIds: number[]): { team1: number[], team2: number[] } {
+  if (playerIds.length !== 4) {
+    throw new Error('掼蛋需要恰好4个玩家');
+  }
+  
+  // 掼蛋中，相对位置的玩家为对家
+  // 假设座位顺序为：0-1-2-3，则对家为 (0,2) 和 (1,3)
+  return {
+    team1: [playerIds[0], playerIds[2]], // 对家1
+    team2: [playerIds[1], playerIds[3]]  // 对家2
+  };
+}
+
+// 检查游戏是否结束并计算排名
+export function checkGameFinished(hands: Map<number, Card[]>, finishedPlayers: number[]): { 
+  finished: boolean; 
+  newFinishedPlayers: number[];
+  rankings?: number[];
+} {
+  const entries = Array.from(hands.entries());
+  const newFinishedPlayers = [...finishedPlayers];
+  
+  // 检查是否有新的玩家出完牌
+  for (const [playerId, hand] of entries) {
+    if (hand.length === 0 && !finishedPlayers.includes(playerId)) {
+      newFinishedPlayers.push(playerId);
+    }
+  }
+  
+  // 如果有3个玩家出完牌，游戏结束
+  if (newFinishedPlayers.length >= 3) {
+    const lastPlayer = entries.find(([playerId]) => !newFinishedPlayers.includes(playerId))?.[0];
+    if (lastPlayer) {
+      newFinishedPlayers.push(lastPlayer);
+    }
+    return { 
+      finished: true, 
+      newFinishedPlayers,
+      rankings: newFinishedPlayers // [头游, 次游, 三游, 末游]
+    };
+  }
+  
+  return { 
+    finished: false, 
+    newFinishedPlayers
+  };
+}
+
+// 计算升级结果
+export function calculateLevelChange(rankings: number[], teams: { team1: number[], team2: number[] }): {
+  winningTeam: 1 | 2;
+  levelChange: number;
+  tributeType: 'double' | 'single' | 'none';
+} {
+  const [first, second, third, fourth] = rankings;
+  
+  // 判断哪个队获胜
+  const team1Win = teams.team1.includes(first);
+  const winningTeam = team1Win ? 1 : 2;
+  
+  // 判断升级情况
+  const isDoubleDown = teams.team1.includes(third) && teams.team1.includes(fourth) ||
+                       teams.team2.includes(third) && teams.team2.includes(fourth);
+  
+  const isSingleDown = teams.team1.includes(fourth) || teams.team2.includes(fourth);
+  
+  let levelChange: number;
+  let tributeType: 'double' | 'single' | 'none';
+  
+  if (isDoubleDown) {
+    levelChange = 3;
+    tributeType = 'double';
+  } else if (isSingleDown) {
+    // 检查是否是对门末游
+    const isOppositeLastPlace = 
+      (teams.team1.includes(first) && teams.team1.includes(fourth)) ||
+      (teams.team2.includes(first) && teams.team2.includes(fourth));
+    
+    if (isOppositeLastPlace) {
+      levelChange = 1;
+      tributeType = 'none';
+    } else {
+      levelChange = 2;
+      tributeType = 'single';
+    }
+  } else {
+    levelChange = 1;
+    tributeType = 'none';
+  }
+  
+  return { winningTeam, levelChange, tributeType };
+}
+
+// 获取等级显示名称
+export function getLevelDisplayName(level: number): string {
+  const names = ['', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+  return names[level] || `${level}`;
+}
