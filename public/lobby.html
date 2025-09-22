@@ -469,6 +469,21 @@
                 }
             });
 
+            // 监听回合变更事件
+            ioSocket.on('turn_update', function(data) {
+                if (data.currentPlayerId) {
+                    currentPlayerId = data.currentPlayerId;
+                    log(`🎯 ${data.message || '轮到下一位玩家'}`);
+                    
+                    // 更新游戏状态显示和按钮状态
+                    if (gameState) {
+                        gameState.currentPlayer = data.currentPlayerId;
+                        updateGameState(gameState);
+                    }
+                    updateTurnBasedButtons();
+                }
+            });
+
             // 监听出牌结果
             ioSocket.on('play_cards_result', function(data) {
                 if (data.success) {
@@ -477,6 +492,16 @@
                     clearSelection();
                 } else {
                     log(`❌ 出牌失败: ${data.message}`);
+                    alert(data.message);
+                }
+            });
+
+            // 监听过牌结果
+            ioSocket.on('pass_turn_result', function(data) {
+                if (data.success) {
+                    log(`✅ 过牌成功`);
+                } else {
+                    log(`❌ 过牌失败: ${data.message}`);
                     alert(data.message);
                 }
             });
