@@ -7,6 +7,18 @@ import jwt from "jsonwebtoken";
 import { db } from "./db";
 import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { 
+  isPlayValid, 
+  removeCardsFromHand, 
+  getPlayType, 
+  canBeatLastPlay, 
+  checkGameFinished,
+  calculateLevelChange,
+  getNextPlayer,
+  shouldResetRound,
+  type PlayedCards,
+  type Card
+} from './gameLogic';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'development-secret-key';
 const gameRoomManager = new GameRoomManager();
@@ -448,9 +460,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
 
-        // 推进回合：currentPlayerIndex = (currentPlayerIndex + 1) % 4
-        gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % 4;
-        gameState.currentPlayer = gameState.playOrder[gameState.currentPlayerIndex];
+        // 添加过牌玩家到已过牌列表
+        gameState.passedPlayers.add(socket.userInfo.id);
+        gameState.consecutivePasses++;
+        
+        // 检查是否需要重置回合（其他玩家都过牌了）
+        if (shouldResetRound(gameState.passedPlayers, gameState.playOrder, gameState.lastPlay?.player || -1)) {
+          gameState.lastPlay = null;
+          gameState.passedPlayers.clear();
+          gameState.consecutivePasses = 0;
+          gameState.isFirstPlay = true;
+        }
+
+        // 推进到下一个玩家
+        const nextPlayer = getNextPlayer(gameState.currentPlayer, gameState.playOrder);
+        gameState.currentPlayer = nextPlayer;
+        gameState.currentPlayerIndex = gameState.playOrder.indexOf(nextPlayer);
         
         // 向房间内的所有客户端广播turn_update事件
         // 获取下一个玩家的昵称
@@ -509,9 +534,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // 权威验证：检查玩家是否有这些牌并且出牌合法
-        const { isPlayValid, removeCardsFromHand, getPlayType, isGameFinished } = await import('./gameLogic');
         const playerHand = gameState.hands.get(socket.userInfo.id) || [];
-        const validation = isPlayValid(cards, gameState.lastPlay, playerHand);
+        
+        // 使用掼蛋规则验证出牌
+        const validation = isPlayValid(cards, gameState.lastPlay, playerHand, gameState.currentLevel || 2);
 
         if (!validation.valid) {
           socket.emit('play_cards_result', {
@@ -525,15 +551,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const newHand = removeCardsFromHand(playerHand, cards);
         gameState.hands.set(socket.userInfo.id, newHand);
         
+        const playType = getPlayType(cards, gameState.currentLevel || 2);
         gameState.lastPlay = {
           cards: cards,
-          playType: getPlayType(cards), // 使用正确的牌型计算
-          player: socket.userInfo.id
-        };
+          playType: playType,
+          player: socket.userInfo.id,
+          canBeBeaten: playType !== 'four_kings', // 四王不能被打败
+          priority: 1 // 临时设置，稍后会被正确计算"
+        } as PlayedCards;
         gameState.tableCards = cards;
+        
+        // 重置过牌状态
+        gameState.passedPlayers.clear();
+        gameState.consecutivePasses = 0;
+        gameState.isFirstPlay = false;
 
         // 检查游戏是否结束
-        const gameResult = isGameFinished(gameState.hands);
+        const gameResult = checkGameFinished(gameState.hands, gameState.finishedPlayers);
 
         // 广播出牌结果
         io.to(roomId!).emit('cards_played', {
@@ -550,19 +584,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: '出牌成功'
         });
 
+        // 更新完成的玩家列表
+        if (gameResult.newFinishedPlayers.length > gameState.finishedPlayers.length) {
+          gameState.finishedPlayers = gameResult.newFinishedPlayers;
+        }
+
         // 如果游戏结束
-        if (gameResult.finished) {
+        if (gameResult.finished && gameResult.rankings) {
           gameState.gamePhase = 'finished';
+          
+          // 计算升级结果
+          const levelResult = calculateLevelChange(gameResult.rankings, gameState.teams);
+          
           io.to(roomId!).emit('game_finished', {
-            winner: gameResult.winner,
-            message: `游戏结束！玩家 ${gameResult.winner} 获胜！`
+            rankings: gameResult.rankings,
+            levelChange: levelResult,
+            message: `游戏结束！${levelResult.winningTeam === 1 ? '队伍1' : '队伍2'} 获胜，升 ${levelResult.levelChange} 级！`
           });
           
-          console.log(`游戏结束！玩家 ${gameResult.winner} 获胜！`);
+          console.log(`游戏结束！排名: ${gameResult.rankings.join(' > ')}`);
         } else {
-          // 在权威验证确认出牌合法之后，推进回合
-          gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % 4;
-          gameState.currentPlayer = gameState.playOrder[gameState.currentPlayerIndex];
+          // 推进到下一个玩家
+          const nextPlayer = getNextPlayer(gameState.currentPlayer, gameState.playOrder);
+          gameState.currentPlayer = nextPlayer;
+          gameState.currentPlayerIndex = gameState.playOrder.indexOf(nextPlayer);
           
           // 向房间内的所有客户端广播turn_update事件
           // 获取下一个玩家的昵称
