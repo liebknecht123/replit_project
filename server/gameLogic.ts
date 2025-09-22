@@ -451,8 +451,8 @@ export function getCardTypePriority(cardType: GuanDanCardType): number {
     'four_kings': 100,      // 天王炸（最大）
     'bomb_8': 90,           // 8张炸弹
     'bomb_7': 89,           // 7张炸弹
-    'straight_flush': 88.5, // 同花顺（大于6张炸弹）
     'bomb_6': 88,           // 6张炸弹
+    'straight_flush': 87,   // 同花顺（小于6张炸弹，大于5张炸弹）
     'bomb_5': 86,           // 5张炸弹
     'bomb_4': 85,           // 4张炸弹
     'triple_pair': 10,      // 其他牌型

@@ -834,6 +834,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // 验证牌型事件
+    socket.on('validate_card_type', (data: any) => {
+      try {
+        const { cards, currentLevel } = data;
+        
+        if (!cards || !Array.isArray(cards)) {
+          socket.emit('card_type_validated', {
+            success: false,
+            message: '无效的牌组'
+          });
+          return;
+        }
+
+        // 验证牌型
+        const cardType = getPlayType(cards, currentLevel || 2);
+        const isValid = cardType !== 'invalid';
+        
+        socket.emit('card_type_validated', {
+          success: true,
+          cardType: cardType,
+          isValid: isValid,
+          cards: cards
+        });
+      } catch (error: any) {
+        console.error(`验证牌型失败: ${error.message}`);
+        socket.emit('card_type_validated', {
+          success: false,
+          message: '验证牌型失败'
+        });
+      }
+    });
+
     // 发送当前房间列表给新连接的用户
     const rooms = gameRoomManager.getAllRooms();
     socket.emit('rooms_list', {

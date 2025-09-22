@@ -368,6 +368,23 @@
                 }
             });
 
+            // 监听牌型验证结果
+            ioSocket.on('card_type_validated', function(data) {
+                log(`🎴 牌型验证结果: ${JSON.stringify(data)}`);
+                
+                const typeDisplay = document.getElementById('cardTypeDisplay');
+                if (!typeDisplay) return;
+
+                if (data.success && data.cardType) {
+                    const displayName = getCardTypeDisplayName(data.cardType);
+                    typeDisplay.textContent = `牌型: ${displayName}`;
+                    typeDisplay.style.color = data.isValid ? '#28a745' : '#dc3545';
+                } else {
+                    typeDisplay.textContent = `牌型: 验证失败`;
+                    typeDisplay.style.color = '#dc3545';
+                }
+            });
+
             ioSocket.on('room_created', function(data) {
                 log(`🏠 房间创建响应: ${JSON.stringify(data)}`);
                 if (data.success) {
@@ -917,6 +934,28 @@
             selectedDiv.innerHTML = selectedHtml;
         }
 
+        // 牌型中文映射
+        function getCardTypeDisplayName(serverType) {
+            const typeNames = {
+                'four_kings': '天王炸',
+                'bomb_8': '八张炸弹',
+                'bomb_7': '七张炸弹',
+                'bomb_6': '六张炸弹',
+                'bomb_5': '五张炸弹',
+                'bomb_4': '四张炸弹',
+                'straight_flush': '同花顺',
+                'triple_pair': '三连对',
+                'steel_plate': '钢板',
+                'straight': '顺子',
+                'triple_with_pair': '三带二',
+                'triple': '三张',
+                'pair': '对子',
+                'single': '单牌',
+                'invalid': '无效牌型'
+            };
+            return typeNames[serverType] || '未知牌型';
+        }
+
         // 更新牌型显示
         function updateCardType() {
             const typeDisplay = document.getElementById('cardTypeDisplay');
@@ -927,32 +966,40 @@
                 return;
             }
 
-            // 这里可以调用服务器验证牌型，暂时显示基本信息
-            let cardType = '未知牌型';
-            let isValid = false;
+            // 发送到服务器验证牌型
+            if (ioSocket && ioSocket.connected) {
+                ioSocket.emit('validate_card_type', {
+                    cards: selectedCards,
+                    currentLevel: currentRoom?.gameState?.currentLevel || 2
+                });
+            } else {
+                // 离线时的基本牌型识别
+                let cardType = '未知牌型';
+                let isValid = false;
 
-            if (selectedCards.length === 1) {
-                cardType = '单牌';
-                isValid = true;
-            } else if (selectedCards.length === 2) {
-                if (selectedCards[0].rank === selectedCards[1].rank) {
-                    cardType = '对子';
+                if (selectedCards.length === 1) {
+                    cardType = '单牌';
                     isValid = true;
+                } else if (selectedCards.length === 2) {
+                    if (selectedCards[0].rank === selectedCards[1].rank) {
+                        cardType = '对子';
+                        isValid = true;
+                    }
+                } else if (selectedCards.length === 3) {
+                    if (selectedCards.every(card => card.rank === selectedCards[0].rank)) {
+                        cardType = '三张';
+                        isValid = true;
+                    }
+                } else if (selectedCards.length >= 4 && selectedCards.length <= 8) {
+                    if (selectedCards.every(card => card.rank === selectedCards[0].rank)) {
+                        cardType = selectedCards.length + '张炸弹';
+                        isValid = true;
+                    }
                 }
-            } else if (selectedCards.length === 3) {
-                if (selectedCards.every(card => card.rank === selectedCards[0].rank)) {
-                    cardType = '三张';
-                    isValid = true;
-                }
-            } else if (selectedCards.length === 4) {
-                if (selectedCards.every(card => card.rank === selectedCards[0].rank)) {
-                    cardType = '四张炸弹';
-                    isValid = true;
-                }
+
+                typeDisplay.textContent = `牌型: ${cardType}`;
+                typeDisplay.style.color = isValid ? '#28a745' : '#dc3545';
             }
-
-            typeDisplay.textContent = `牌型: ${cardType}`;
-            typeDisplay.style.color = isValid ? '#28a745' : '#dc3545';
         }
 
         // 更新出牌按钮状态
