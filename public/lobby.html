@@ -727,19 +727,25 @@
                 return;
             }
 
+            // 获取当前用户信息
+            const currentUserInfo = getCurrentUserInfo();
+            
             // 检查是否轮到我出牌
             const isMyTurn = gameState.currentPlayer && currentUserInfo && 
                             gameState.currentPlayer === currentUserInfo.id;
 
             // 显示游戏状态
-            const statusText = gameState.gamePhase === 'playing' ? '游戏进行中' : gameState.gamePhase || '未知状态';
+            const statusText = gameState.gamePhase === 'playing' ? '🎮 游戏进行中' : gameState.gamePhase || '等待开始';
             
             gameStateDiv.innerHTML = `
-                <p><strong>游戏状态:</strong> ${statusText}</p>
-                <p><strong>当前出牌玩家ID:</strong> ${gameState.currentPlayer}</p>
-                <p><strong>轮到我出牌:</strong> ${isMyTurn ? '是' : '否'}</p>
-                <p><strong>玩家数量:</strong> ${gameState.players ? gameState.players.length : 0}</p>
-                <p><strong>当前级别:</strong> ${gameState.currentLevel || '未知'}</p>
+                <div style="padding: 15px; background: #e8f5e8; border-left: 4px solid #28a745; border-radius: 4px;">
+                    <p><strong>游戏状态:</strong> ${statusText}</p>
+                    <p><strong>当前出牌玩家ID:</strong> ${gameState.currentPlayer}</p>
+                    <p><strong>轮到我出牌:</strong> ${isMyTurn ? '✅ 是' : '❌ 否'}</p>
+                    <p><strong>玩家数量:</strong> ${gameState.players ? gameState.players.length : 0}/4</p>
+                    <p><strong>当前级别:</strong> ${gameState.currentLevel || '2'}</p>
+                    <p><strong>玩家顺序:</strong> [${gameState.playOrder ? gameState.playOrder.join(' → ') : '未知'}]</p>
+                </div>
             `;
         }
 
