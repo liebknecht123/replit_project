@@ -66,6 +66,6 @@ app.use((req, res, next) => {
     console.log(`🚀 掼蛋游戏服务器运行在端口 ${PORT}`);
     console.log(`📡 WebSocket服务: ws://localhost:${PORT}/ws`);
     console.log(`🌐 HTTP API: http://localhost:${PORT}/api`);
-    console.log(`🃏 测试页面: http://localhost:${PORT}/test-websocket-client.html`);
+    console.log(`🎮 游戏客户端: http://localhost:${PORT}/`);
   });
 })();
