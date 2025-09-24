@@ -659,7 +659,7 @@ export class GameRoomManager {
       duration: 30
     };
 
-    // 向房间内所有玩家广播定时器更新
+    // 立即向房间内所有玩家广播定时器更新
     this.broadcastTimerUpdate(roomId);
 
     // 启动30秒倒计时
@@ -735,9 +735,6 @@ export class GameRoomManager {
     // 更新游戏阶段
     room.gameState.gamePhase = 'playing';
     
-    // 清除思考阶段定时器状态
-    room.gameState.timerState = undefined;
-
     // 启动第一个玩家的出牌定时器
     this.startPlayingTimer(roomId);
 
@@ -802,7 +799,7 @@ export class GameRoomManager {
       this.addGameLog(roomId, '🔄 所有玩家都过牌，重新开始出牌', 'system');
     }
 
-    // 为下一个玩家启动定时器
+    // 立即为下一个玩家启动30秒定时器
     this.startPlayingTimer(roomId);
 
     console.log(`房间 ${roomId} 玩家 ${currentPlayer} 自动过牌，下一个玩家: ${room.gameState.currentPlayer}`);

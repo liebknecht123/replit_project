@@ -149,6 +149,17 @@
             <div id="gameState">
                 <p>未开始游戏</p>
             </div>
+            
+            <!-- 定时器显示 -->
+            <div id="gameTimer" style="display: none; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; padding: 10px; margin-top: 10px;">
+                <div id="timerInfo" style="text-align: center; font-size: 16px; font-weight: bold;">
+                    <div id="timerPhase" style="color: #856404; margin-bottom: 5px;"></div>
+                    <div id="timerCountdown" style="color: #d63031; font-size: 24px;"></div>
+                    <div id="timerProgress" style="background: #e0e0e0; height: 8px; border-radius: 4px; margin-top: 8px; overflow: hidden;">
+                        <div id="timerBar" style="background: linear-gradient(90deg, #00b894, #fdcb6e, #e17055); height: 100%; transition: width 1s ease-in-out;"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -459,6 +470,28 @@
 
             ioSocket.on('reconnect_error', function(error) {
                 log(`❌ Socket.IO重连失败: ${error.message}`);
+            });
+
+            // 监听定时器更新事件
+            ioSocket.on('timer_update', function(data) {
+                updateGameTimer(data);
+            });
+
+            // 监听游戏阶段变化事件
+            ioSocket.on('game_phase_changed', function(data) {
+                log(`🎯 游戏阶段变化: ${data.message}`);
+                // 保持定时器可见，让timer_update事件来控制具体显示
+            });
+
+            // 监听过牌事件（包括自动过牌）
+            ioSocket.on('turn_passed', function(data) {
+                if (data.isAutoPass) {
+                    log(`⏰ ${data.message}`);
+                    // 显示超时通知
+                    showTimeoutNotification(data.passedPlayerName);
+                } else {
+                    log(`↩️ ${data.message}`);
+                }
             });
 
             // 游戏相关事件
@@ -1125,6 +1158,96 @@
         }
         
         updateStatus(false);
+
+        // 定时器相关函数
+        function updateGameTimer(data) {
+            const gameTimer = document.getElementById('gameTimer');
+            const timerPhase = document.getElementById('timerPhase');
+            const timerCountdown = document.getElementById('timerCountdown');
+            const timerBar = document.getElementById('timerBar');
+            
+            if (!gameTimer || !timerPhase || !timerCountdown || !timerBar) return;
+            
+            // 显示定时器
+            gameTimer.style.display = 'block';
+            
+            // 更新阶段信息
+            if (data.phase === 'thinking') {
+                timerPhase.textContent = '🤔 思考阶段 - 所有玩家准备策略';
+                timerPhase.style.color = '#856404';
+            } else if (data.phase === 'playing') {
+                timerPhase.textContent = `⏰ 出牌阶段 - 轮到玩家 ${data.currentPlayer}`;
+                timerPhase.style.color = '#d63031';
+            }
+            
+            // 更新倒计时
+            timerCountdown.textContent = `${data.remainingTime}秒`;
+            
+            // 更新进度条
+            const percentage = (data.remainingTime / data.duration) * 100;
+            timerBar.style.width = `${percentage}%`;
+            
+            // 根据剩余时间改变颜色
+            if (data.remainingTime <= 10) {
+                timerCountdown.style.color = '#e17055'; // 红色警告
+                timerBar.style.background = '#e17055';
+            } else if (data.remainingTime <= 20) {
+                timerCountdown.style.color = '#fdcb6e'; // 黄色警告
+                timerBar.style.background = '#fdcb6e';
+            } else {
+                timerCountdown.style.color = '#00b894'; // 绿色正常
+                timerBar.style.background = 'linear-gradient(90deg, #00b894, #fdcb6e, #e17055)';
+            }
+            
+            log(`⏰ 定时器更新: ${data.phase} - 剩余 ${data.remainingTime}/${data.duration} 秒`);
+        }
+        
+        function hideGameTimer() {
+            const gameTimer = document.getElementById('gameTimer');
+            if (gameTimer) {
+                gameTimer.style.display = 'none';
+            }
+        }
+        
+        function showTimeoutNotification(playerName) {
+            // 创建超时通知
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed; top: 50%; left: 50%;
+                transform: translate(-50%, -50%);
+                background: #e17055; color: white;
+                padding: 20px 30px; border-radius: 12px;
+                box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+                z-index: 2000; font-weight: bold;
+                font-size: 18px; text-align: center;
+                border: 2px solid #d63031;
+            `;
+            notification.innerHTML = `
+                <div style="margin-bottom: 8px;">⏰ 超时通知</div>
+                <div>${playerName} 超时未出牌，自动过牌</div>
+            `;
+            document.body.appendChild(notification);
+            
+            // 3秒后自动移除通知
+            setTimeout(() => {
+                if (document.body.contains(notification)) {
+                    document.body.removeChild(notification);
+                }
+            }, 3000);
+        }
+        
+        // 在游戏状态更新函数中添加定时器隐藏逻辑
+        const originalUpdateGameState = updateGameState;
+        updateGameState = function(data) {
+            originalUpdateGameState(data);
+            
+            // 只在游戏完全结束时隐藏定时器
+            const gameState = data.gameState || data;
+            if (!gameState || gameState.gamePhase === 'finished') {
+                hideGameTimer();
+            }
+        };
+
     </script>
 
     <!-- Socket.IO 客户端库 -->
