@@ -58,7 +58,7 @@ export interface GameState {
   currentPlayerIndex: number; // 指向playOrder数组的当前回合索引
   lastPlay: PlayedCards | null; // 上一次出牌
   tableCards: Card[]; // 桌面上的牌
-  gamePhase: 'waiting' | 'dealing' | 'playing' | 'finished' | 'tribute';
+  gamePhase: 'waiting' | 'dealing' | 'thinking' | 'playing' | 'finished' | 'tribute';
   currentLevel: number; // 当前等级 (2-A，2=2, 3=3...10=10, J=11, Q=12, K=13, A=14)
   levelProgress: { team1: number, team2: number }; // 各队当前等级
   gameRound: number; // 第几局游戏
@@ -66,6 +66,13 @@ export interface GameState {
   passedPlayers: Set<number>; // 当前回合已过牌的玩家
   consecutivePasses: number; // 连续过牌次数
   isFirstPlay: boolean; // 是否为首次出牌
+  // 定时器相关
+  timerState?: {
+    phase: 'thinking' | 'playing'; // 当前定时器阶段
+    remainingTime: number; // 剩余时间（秒）
+    startTime: number; // 开始时间戳
+    duration: number; // 总时长（秒）
+  };
 }
 
 // 生成两副完整扑克牌（掼蛋专用）

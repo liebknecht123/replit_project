@@ -56,6 +56,13 @@ export class GameRoomManager {
   private rooms = new Map<string, ActiveRoom>(); // roomId -> room data
   private playerRooms = new Map<string, string>(); // socketId -> roomId
   private userSockets = new Map<number, string>(); // userId -> socketId
+  private gameTimers = new Map<string, NodeJS.Timeout>(); // roomId -> 定时器
+  private io: any = null; // Socket.IO 实例
+
+  // 设置Socket.IO实例
+  setIO(io: any): void {
+    this.io = io;
+  }
 
   // 生成唯一房间ID
   generateRoomId(): string {
@@ -429,7 +436,7 @@ export class GameRoomManager {
       currentPlayerIndex: currentPlayerIndex, // 指向playOrder数组的当前回合索引
       lastPlay: null,
       tableCards: [],
-      gamePhase: 'playing',
+      gamePhase: 'thinking',
       currentLevel: currentLevel,
       levelProgress: { team1: currentLevel, team2: currentLevel },
       gameRound: room.gameRound || 1,
@@ -447,10 +454,13 @@ export class GameRoomManager {
     await db.update(gameRooms)
       .set({ status: 'playing' })
       .where(eq(gameRooms.id, roomId));
+
+    // 启动60秒思考阶段定时器
+    this.startThinkingTimer(roomId);
     
     return { 
       success: true, 
-      message: '游戏开始！', 
+      message: '游戏开始！所有玩家有60秒时间思考策略...', 
       gameState: gameState 
     };
   }
@@ -596,5 +606,215 @@ export class GameRoomManager {
       success: true, 
       currentPlayerId: gameState.currentPlayer 
     };
+  }
+
+  // 启动60秒思考阶段定时器
+  startThinkingTimer(roomId: string): void {
+    const room = this.rooms.get(roomId);
+    if (!room || !room.gameState) return;
+
+    // 清除之前的定时器
+    this.clearTimer(roomId);
+
+    const gameState = room.gameState;
+    const startTime = Date.now();
+
+    // 设置思考阶段定时器状态
+    gameState.timerState = {
+      phase: 'thinking',
+      remainingTime: 60,
+      startTime: startTime,
+      duration: 60
+    };
+
+    // 向房间内所有玩家广播思考阶段开始
+    this.broadcastTimerUpdate(roomId);
+
+    // 启动倒计时更新
+    this.startCountdown(roomId, 60, () => {
+      // 60秒后切换到出牌阶段
+      this.startPlayingPhase(roomId);
+    });
+
+    this.addGameLog(roomId, '🤔 思考阶段开始，60秒后进入出牌阶段', 'system');
+    console.log(`房间 ${roomId} 启动60秒思考阶段定时器`);
+  }
+
+  // 启动出牌阶段定时器
+  startPlayingTimer(roomId: string): void {
+    const room = this.rooms.get(roomId);
+    if (!room || !room.gameState) return;
+
+    // 清除之前的定时器
+    this.clearTimer(roomId);
+
+    const gameState = room.gameState;
+    const startTime = Date.now();
+
+    // 设置出牌阶段定时器状态
+    gameState.timerState = {
+      phase: 'playing',
+      remainingTime: 30,
+      startTime: startTime,
+      duration: 30
+    };
+
+    // 向房间内所有玩家广播定时器更新
+    this.broadcastTimerUpdate(roomId);
+
+    // 启动30秒倒计时
+    this.startCountdown(roomId, 30, () => {
+      // 30秒后自动过牌
+      this.autoPassTurn(roomId);
+    });
+
+    const currentPlayerName = this.getPlayerDisplayName(roomId, gameState.currentPlayer);
+    this.addGameLog(roomId, `⏰ ${currentPlayerName} 有30秒出牌时间`, 'system');
+    console.log(`房间 ${roomId} 启动30秒出牌定时器，当前玩家: ${gameState.currentPlayer}`);
+  }
+
+  // 启动倒计时
+  startCountdown(roomId: string, seconds: number, onComplete: () => void): void {
+    let remainingTime = seconds;
+    
+    const timer = setInterval(() => {
+      remainingTime--;
+      
+      const room = this.rooms.get(roomId);
+      if (!room || !room.gameState || !room.gameState.timerState) {
+        clearInterval(timer);
+        return;
+      }
+
+      // 更新剩余时间
+      room.gameState.timerState.remainingTime = remainingTime;
+      
+      // 每秒广播定时器更新
+      this.broadcastTimerUpdate(roomId);
+
+      if (remainingTime <= 0) {
+        clearInterval(timer);
+        this.gameTimers.delete(roomId);
+        onComplete();
+      }
+    }, 1000);
+
+    this.gameTimers.set(roomId, timer);
+  }
+
+  // 广播定时器更新给房间内所有玩家
+  broadcastTimerUpdate(roomId: string): void {
+    if (!this.io) return;
+
+    const room = this.rooms.get(roomId);
+    if (!room || !room.gameState || !room.gameState.timerState) return;
+
+    this.io.to(roomId).emit('timer_update', {
+      phase: room.gameState.timerState.phase,
+      remainingTime: room.gameState.timerState.remainingTime,
+      duration: room.gameState.timerState.duration,
+      currentPlayer: room.gameState.currentPlayer,
+      gamePhase: room.gameState.gamePhase
+    });
+  }
+
+  // 清除房间定时器
+  clearTimer(roomId: string): void {
+    const timer = this.gameTimers.get(roomId);
+    if (timer) {
+      clearInterval(timer);
+      this.gameTimers.delete(roomId);
+    }
+  }
+
+  // 切换到出牌阶段
+  startPlayingPhase(roomId: string): void {
+    const room = this.rooms.get(roomId);
+    if (!room || !room.gameState) return;
+
+    // 更新游戏阶段
+    room.gameState.gamePhase = 'playing';
+    
+    // 清除思考阶段定时器状态
+    room.gameState.timerState = undefined;
+
+    // 启动第一个玩家的出牌定时器
+    this.startPlayingTimer(roomId);
+
+    this.addGameLog(roomId, '🎯 思考阶段结束，开始出牌阶段！', 'system');
+    
+    // 广播游戏阶段更新
+    if (this.io) {
+      this.io.to(roomId).emit('game_phase_changed', {
+        gamePhase: 'playing',
+        currentPlayer: room.gameState.currentPlayer,
+        message: '思考阶段结束，开始出牌！'
+      });
+    }
+
+    console.log(`房间 ${roomId} 切换到出牌阶段`);
+  }
+
+  // 自动过牌（超时处理）
+  autoPassTurn(roomId: string): void {
+    const room = this.rooms.get(roomId);
+    if (!room || !room.gameState) return;
+
+    const currentPlayer = room.gameState.currentPlayer;
+    const playerName = this.getPlayerDisplayName(roomId, currentPlayer);
+
+    // 添加过牌日志
+    this.addGameLog(roomId, `⏰ ${playerName} 超时未出牌，自动过牌`, 'system');
+
+    // 处理过牌逻辑
+    room.gameState.passedPlayers.add(currentPlayer);
+    room.gameState.consecutivePasses++;
+
+    // 切换到下一个玩家
+    const nextPlayerIndex = (room.gameState.currentPlayerIndex + 1) % room.gameState.playOrder.length;
+    room.gameState.currentPlayerIndex = nextPlayerIndex;
+    room.gameState.currentPlayer = room.gameState.playOrder[nextPlayerIndex];
+
+    // 广播过牌事件
+    if (this.io) {
+      this.io.to(roomId).emit('turn_passed', {
+        passedPlayer: currentPlayer,
+        passedPlayerName: playerName,
+        nextPlayer: room.gameState.currentPlayer,
+        isAutoPass: true,
+        message: `${playerName} 超时未出牌，自动过牌`
+      });
+
+      this.io.to(roomId).emit('turn_update', {
+        currentPlayerId: room.gameState.currentPlayer,
+        currentPlayerName: this.getPlayerDisplayName(roomId, room.gameState.currentPlayer)
+      });
+    }
+
+    // 检查是否所有人都过牌了
+    if (room.gameState.consecutivePasses >= 3) {
+      // 清空桌面，重新开始
+      room.gameState.lastPlay = null;
+      room.gameState.passedPlayers.clear();
+      room.gameState.consecutivePasses = 0;
+      room.gameState.isFirstPlay = true;
+      
+      this.addGameLog(roomId, '🔄 所有玩家都过牌，重新开始出牌', 'system');
+    }
+
+    // 为下一个玩家启动定时器
+    this.startPlayingTimer(roomId);
+
+    console.log(`房间 ${roomId} 玩家 ${currentPlayer} 自动过牌，下一个玩家: ${room.gameState.currentPlayer}`);
+  }
+
+  // 玩家主动出牌时停止定时器
+  stopCurrentTimer(roomId: string): void {
+    this.clearTimer(roomId);
+    
+    const room = this.rooms.get(roomId);
+    if (room && room.gameState) {
+      room.gameState.timerState = undefined;
+    }
   }
 }
