@@ -71,6 +71,15 @@
     <!-- 底部区域 - 我的区域 -->
     <div class="bottom-area">
       <div class="my-area">
+        <!-- 我的手牌 -->
+        <div class="hand-area">
+          <PlayerHand
+            ref="playerHandRef"
+            :cards="gameStore.myHand"
+            @selection-change="handleSelectionChange"
+          />
+        </div>
+
         <!-- 操作面板 -->
         <div class="action-area">
           <ActionPanel
@@ -82,15 +91,6 @@
             @hint="handleHint"
             @auto-play="handleAutoPlay"
             @surrender="handleSurrender"
-          />
-        </div>
-
-        <!-- 我的手牌 -->
-        <div class="hand-area">
-          <PlayerHand
-            ref="playerHandRef"
-            :cards="gameStore.myHand"
-            @selection-change="handleSelectionChange"
           />
         </div>
       </div>
@@ -387,7 +387,7 @@ onUnmounted(() => {
 }
 
 .bottom-area {
-  height: 200px;
+  height: 250px;
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -396,22 +396,24 @@ onUnmounted(() => {
 
 .my-area {
   display: flex;
-  align-items: flex-end;
-  gap: 40px;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
   width: 100%;
   max-width: 1200px;
-  justify-content: center;
-}
-
-.action-area {
-  flex-shrink: 0;
 }
 
 .hand-area {
-  flex: 1;
   display: flex;
   justify-content: center;
-  max-width: 800px;
+  width: 100%;
+  max-width: 900px;
+}
+
+.action-area {
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .game-status-overlay {
@@ -462,10 +464,12 @@ onUnmounted(() => {
     width: 150px;
   }
   
+  .bottom-area {
+    height: 220px;
+  }
+  
   .my-area {
-    flex-direction: column-reverse;
-    gap: 20px;
-    align-items: center;
+    gap: 15px;
   }
   
   .played-cards-area {
@@ -492,6 +496,15 @@ onUnmounted(() => {
   .left-area,
   .right-area {
     width: 100px;
+  }
+  
+  .bottom-area {
+    height: 200px;
+    padding: 15px;
+  }
+  
+  .my-area {
+    gap: 12px;
   }
 }
 </style>
