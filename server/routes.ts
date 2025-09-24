@@ -160,6 +160,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     allowEIO3: true  // 允许Engine.IO v3客户端连接到v4服务器
   });
 
+  // 设置Socket.IO实例到gameRoomManager
+  gameRoomManager.setIO(io);
+
   // 创建startGame函数：包含所有开始游戏的逻辑
   const startGame = async (roomId: string) => {
     try {
@@ -496,6 +499,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
 
+        // 停止当前玩家的定时器（过牌）
+        gameRoomManager.stopCurrentTimer(roomId);
+        
         // 添加过牌玩家到已过牌列表
         gameState.passedPlayers.add(socket.userInfo.id);
         gameState.consecutivePasses++;
@@ -525,6 +531,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           currentPlayerId: gameState.currentPlayer,
           message: passMessage
         });
+
+        // 为下一个玩家启动30秒出牌定时器
+        gameRoomManager.startPlayingTimer(roomId!);
 
         console.log(`玩家 ${socket.userInfo.username} 过牌，回合交给 ${nextPlayerName}`);
       } catch (error: any) {
@@ -602,6 +611,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         gameState.consecutivePasses = 0;
         gameState.isFirstPlay = false;
 
+        // 停止当前玩家的定时器（成功出牌）
+        gameRoomManager.stopCurrentTimer(roomId);
+
         // 检查游戏是否结束
         const gameResult = checkGameFinished(gameState.hands, gameState.finishedPlayers);
 
@@ -670,6 +682,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             currentPlayerId: gameState.currentPlayer,
             message: turnMessage
           });
+
+          // 为下一个玩家启动30秒出牌定时器
+          gameRoomManager.startPlayingTimer(roomId!);
 
           console.log(`玩家 ${socket.userInfo.username} 出牌成功，回合交给 ${nextPlayerName}`);
         }
