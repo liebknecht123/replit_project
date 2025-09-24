@@ -1083,7 +1083,7 @@
         
         // 检查认证状态并自动连接
         function checkAuthAndConnect() {
-            const token = localStorage.getItem('jwt_token');
+            const token = localStorage.getItem('jwtToken');
             const userInfo = localStorage.getItem('user_info');
             
             if (!token || !userInfo) {
@@ -1103,7 +1103,7 @@
                 connect();
             } catch (error) {
                 console.error('解析用户信息失败:', error);
-                localStorage.removeItem('jwt_token');
+                localStorage.removeItem('jwtToken');
                 localStorage.removeItem('user_info');
                 window.location.href = '/login.html';
             }
@@ -1111,11 +1111,16 @@
         
         // 退出登录
         function logout() {
+            // 第一步：主动断开WebSocket连接
             if (socket) {
                 socket.disconnect();
             }
-            localStorage.removeItem('jwt_token');
+            
+            // 第二步：彻底清除浏览器中存储的用户凭证
+            localStorage.removeItem('jwtToken');
             localStorage.removeItem('user_info');
+            
+            // 第三步：将用户重定向回登录页面
             window.location.href = '/login.html';
         }
         

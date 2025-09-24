@@ -154,15 +154,7 @@
     </div>
 
     <script>
-        // 页面加载时检查是否已经登录
-        window.addEventListener('DOMContentLoaded', function() {
-            const token = localStorage.getItem('jwt_token');
-            if (token) {
-                // 如果已有token，直接跳转到游戏大厅
-                window.location.href = '/lobby.html';
-                return;
-            }
-        });
+        // 页面加载完成，等待用户操作
 
         // 登录表单处理
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
@@ -198,7 +190,7 @@
                 
                 if (result.success && result.data && result.data.token) {
                     // 登录成功，保存JWT Token到localStorage
-                    localStorage.setItem('jwt_token', result.data.token);
+                    localStorage.setItem('jwtToken', result.data.token);
                     localStorage.setItem('user_info', JSON.stringify({
                         id: result.data.user.id,
                         username: result.data.user.username
