@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a comprehensive monorepo project containing multiple interconnected applications: a React-based frontend web application, an admin dashboard, a Node.js Express API backend, and a Godot game client. The project serves as a management platform for monitoring and controlling various services within the monorepo ecosystem, featuring service status monitoring, build management, and project analytics.
+This is a comprehensive monorepo project for the "掼蛋" (Guan Dan) card game featuring a unified Web-based frontend architecture. The project includes a React-based web application, an admin dashboard, and a Node.js Express API backend with real-time WebSocket functionality. The project has completely migrated to Vue.js technology stack for the unified frontend, abandoning the previous Godot client approach.
 
 ## User Preferences
 
@@ -11,12 +11,14 @@ Language preference: Chinese (中文) - Use Chinese when building and explaining
 
 ## System Architecture
 
-### Frontend Architecture
-- **Main Client**: React 18 with TypeScript, built using Vite for development and bundling
+### Frontend Architecture  
+- **Unified Web Frontend**: Vue.js-based architecture for comprehensive game client
+- **Current Implementation**: React 18 with TypeScript, built using Vite for development and bundling  
 - **UI Framework**: Tailwind CSS with shadcn/ui component library for consistent design
 - **State Management**: TanStack React Query for server state management and API caching
 - **Routing**: Wouter for lightweight client-side routing
 - **Forms**: React Hook Form with Zod validation for type-safe form handling
+- **Game Interface**: Real-time game lobby with timer system and card game functionality
 
 ### Backend Architecture
 - **API Server**: Node.js Express server with TypeScript running on port 5000
@@ -44,6 +46,7 @@ Language preference: Chinese (中文) - Use Chinese when building and explaining
 - **Development**: Concurrent development server running Express API with Vite frontend
 - **Production Build**: Separate build processes for client (Vite) and server (esbuild)
 - **Asset Management**: Shared assets directory with proper aliasing
+- **Architecture Decision**: Completely migrated to unified Web-based frontend (Vue.js), abandoning Godot client
 
 ### Service Management  
 - **Unified Architecture**: Single TypeScript server (port 5000) serving both API and WebSocket
