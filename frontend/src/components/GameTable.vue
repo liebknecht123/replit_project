@@ -35,6 +35,7 @@
                 :key="`played-${index}`"
                 :suit="card.suit"
                 :rank="card.rank"
+                :style="{ marginRight: index < lastPlayedCards.length - 1 ? '8px' : '0' }"
                 class="played-card"
               />
             </div>

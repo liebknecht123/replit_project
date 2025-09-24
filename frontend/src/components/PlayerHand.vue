@@ -63,15 +63,22 @@ const toggleCard = (index: number) => {
 
 const getCardStyle = (index: number) => {
   const totalCards = props.cards.length
-  const maxWidth = 800 // 最大宽度
-  const cardWidth = 60
-  const maxOverlap = 40 // 最大重叠距离
+  const maxWidth = 900 // 增加最大宽度
+  const cardWidth = 45 // 更新卡牌宽度
+  const cardSpacing = 50 // 卡牌间距，不重叠显示
   
-  let spacing = Math.min(maxOverlap, (maxWidth - cardWidth) / (totalCards - 1))
+  // 计算是否需要缩小间距来适应屏幕
+  const totalNeededWidth = (totalCards - 1) * cardSpacing + cardWidth
+  let spacing = cardSpacing
+  
+  if (totalNeededWidth > maxWidth) {
+    spacing = Math.max(cardWidth + 5, (maxWidth - cardWidth) / (totalCards - 1))
+  }
+  
   if (totalCards === 1) spacing = 0
   
   return {
-    transform: `translateX(${index * spacing}px)`,
+    '--card-x': `${index * spacing}px`,
     zIndex: index + 1
   }
 }
@@ -107,10 +114,10 @@ defineExpose({
 .hand-container {
   display: flex;
   position: relative;
-  height: 100px; /* 给选中状态留出空间 */
+  height: 85px; /* 调整高度适配更小的卡牌 */
   align-items: flex-end;
   justify-content: center;
-  min-width: 300px;
+  min-width: 400px; /* 增加最小宽度以适应不重叠的卡牌 */
 }
 
 .hand-card {

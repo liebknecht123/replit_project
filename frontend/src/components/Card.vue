@@ -58,27 +58,30 @@ const displayRank = computed(() => {
 
 <style scoped>
 .card {
-  width: 60px;
-  height: 84px;
+  width: 45px;
+  height: 63px;
   background: white;
-  border-radius: 8px;
-  border: 2px solid #ddd;
+  border-radius: 6px;
+  border: 1.5px solid #ddd;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-start;
+  justify-content: flex-start;
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   user-select: none;
+  position: relative;
+  padding: 4px;
+  transform: translateX(var(--card-x, 0));
 }
 
 .card:hover {
-  transform: translateY(-5px);
+  transform: translateX(var(--card-x, 0)) translateY(-5px);
   box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
 
 .card.selected {
-  transform: translateY(-15px);
+  transform: translateX(var(--card-x, 0)) translateY(-15px);
   border-color: #409eff;
   box-shadow: 0 6px 12px rgba(64, 158, 255, 0.3);
 }
@@ -86,17 +89,21 @@ const displayRank = computed(() => {
 .card-content {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   font-weight: bold;
+  position: absolute;
+  top: 2px;
+  left: 2px;
 }
 
 .rank {
-  font-size: 16px;
+  font-size: 12px;
   line-height: 1;
+  margin-bottom: 1px;
 }
 
 .suit {
-  font-size: 20px;
+  font-size: 14px;
   line-height: 1;
 }
 
@@ -114,6 +121,6 @@ const displayRank = computed(() => {
 }
 
 .card[data-suit="joker"] .suit {
-  font-size: 24px;
+  font-size: 18px;
 }
 </style>
