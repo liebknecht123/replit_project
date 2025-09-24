@@ -60,7 +60,7 @@ app.use((req, res, next) => {
   }
 
   // 统一端口配置 - 接管主端口
-  const PORT = parseInt(process.env.PORT || '8080', 10);
+  const PORT = parseInt(process.env.PORT || '5000', 10);
   
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 掼蛋游戏服务器运行在端口 ${PORT}`);
