@@ -61,13 +61,55 @@ const toggleCard = (index: number) => {
   emit('selection-change', [...selectedCards.value], selectedCardData)
 }
 
-const getCardStyle = (index: number) => {
-  const totalCards = props.cards.length
-  const maxWidth = 900 // 最大宽度
-  const cardWidth = 45 // 卡牌宽度
-  const cardSpacing = 50 // 卡牌间距，不重叠显示
+// 按花色排序：方块、梅花、红桃、黑桃
+const getSuitOrder = (suit: string): number => {
+  const order = { diamonds: 0, clubs: 1, hearts: 2, spades: 3, joker: 4 }
+  return order[suit as keyof typeof order] ?? 4
+}
+
+// 对卡牌进行分组和排序
+const getGroupedAndSortedCards = () => {
+  // 先按点数分组
+  const groups = new Map<string | number, CardData[]>()
   
-  // 计算是否需要缩小间距来适应屏幕
+  props.cards.forEach(card => {
+    const key = card.rank
+    if (!groups.has(key)) {
+      groups.set(key, [])
+    }
+    groups.get(key)!.push(card)
+  })
+  
+  // 对每组内的卡牌按花色排序
+  for (const group of groups.values()) {
+    group.sort((a, b) => getSuitOrder(a.suit) - getSuitOrder(b.suit))
+  }
+  
+  // 按点数排序分组，然后展平
+  const sortedGroups = Array.from(groups.entries()).sort((a, b) => {
+    const rankA = typeof a[0] === 'string' ? (a[0] === 'small' ? 100 : 101) : a[0]
+    const rankB = typeof b[0] === 'string' ? (b[0] === 'small' ? 100 : 101) : b[0]
+    return rankA - rankB
+  })
+  
+  return sortedGroups.flatMap(([_, cards]) => cards)
+}
+
+const getCardStyle = (index: number) => {
+  const sortedCards = getGroupedAndSortedCards()
+  const currentCard = props.cards[index]
+  
+  // 找到当前卡牌在排序后数组中的位置
+  const sortedIndex = sortedCards.findIndex(card => 
+    card.suit === currentCard.suit && card.rank === currentCard.rank
+  )
+  
+  const totalCards = sortedCards.length
+  const maxWidth = 900
+  const cardWidth = 45
+  const cardSpacing = 50
+  
+  // 计算是否需要缩小间距
   const totalNeededWidth = (totalCards - 1) * cardSpacing + cardWidth
   let spacing = cardSpacing
   
@@ -75,17 +117,52 @@ const getCardStyle = (index: number) => {
     spacing = Math.max(cardWidth + 5, (maxWidth - cardWidth) / (totalCards - 1))
   }
   
-  // 计算整个手牌组合的总宽度
-  const totalHandWidth = totalCards === 1 ? cardWidth : (totalCards - 1) * spacing + cardWidth
+  // 计算水平位置
+  let groupStartIndex = 0
+  let cardX = 0
   
-  // 计算起始偏移量，让整个组合居中
-  const startOffset = -totalHandWidth / 2 + cardWidth / 2
+  // 按点数分组来计算位置
+  const groups = new Map<string | number, CardData[]>()
+  sortedCards.forEach(card => {
+    const key = card.rank
+    if (!groups.has(key)) {
+      groups.set(key, [])
+    }
+    groups.get(key)!.push(card)
+  })
   
-  // 每张牌的最终位置
-  const cardPosition = startOffset + index * spacing
+  const groupEntries = Array.from(groups.entries())
+  for (let i = 0; i < groupEntries.length; i++) {
+    const [rank, cards] = groupEntries[i]
+    const isCurrentGroup = cards.some(card => 
+      card.suit === currentCard.suit && card.rank === currentCard.rank
+    )
+    
+    if (isCurrentGroup) {
+      const cardIndexInGroup = cards.findIndex(card => 
+        card.suit === currentCard.suit && card.rank === currentCard.rank
+      )
+      cardX = groupStartIndex * spacing
+      
+      // 计算垂直偏移 - 方块在最上方，后续花色向下偏移
+      const cardY = cardIndexInGroup * 15 // 相同数字的牌向下堆叠
+      
+      // 整体居中
+      const totalHandWidth = (groupEntries.length - 1) * spacing + cardWidth
+      const startOffset = -totalHandWidth / 2 + cardWidth / 2
+      
+      return {
+        '--card-x': `${startOffset + cardX}px`,
+        '--card-y': `${cardY}px`,
+        zIndex: index + cardIndexInGroup * 10
+      }
+    }
+    groupStartIndex++
+  }
   
   return {
-    '--card-x': `${cardPosition}px`,
+    '--card-x': '0px',
+    '--card-y': '0px',
     zIndex: index + 1
   }
 }
@@ -121,7 +198,7 @@ defineExpose({
 .hand-container {
   display: flex;
   position: relative;
-  height: 85px; /* 调整高度适配更小的卡牌 */
+  height: 120px; /* 增加高度以容纳竖直排列的卡牌 */
   align-items: flex-end;
   justify-content: center;
   width: 100%; /* 使用全宽度 */
