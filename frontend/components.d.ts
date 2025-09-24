@@ -19,6 +19,7 @@ declare module 'vue' {
     LoginForm: typeof import('./src/components/LoginForm.vue')['default']
     PlayerAvatar: typeof import('./src/components/PlayerAvatar.vue')['default']
     PlayerHand: typeof import('./src/components/PlayerHand.vue')['default']
+    RegisterForm: typeof import('./src/components/RegisterForm.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
   }

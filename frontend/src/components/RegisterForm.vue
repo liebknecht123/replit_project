@@ -1,64 +1,75 @@
 <template>
-  <div class="login-container">
-    <div class="login-card">
-      <div class="login-header">
-        <h1 class="login-title">掼蛋游戏</h1>
-        <p class="login-subtitle">欢迎回来，请登录您的账户</p>
+  <div class="register-container">
+    <div class="register-card">
+      <div class="register-header">
+        <h1 class="register-title">🃏 掼蛋游戏</h1>
+        <p class="register-subtitle">欢迎加入，请创建您的账户</p>
       </div>
 
       <el-form
-        ref="loginFormRef"
-        :model="loginForm"
-        :rules="loginRules"
-        class="login-form"
-        @submit.prevent="handleLogin"
+        ref="registerFormRef"
+        :model="registerForm"
+        :rules="registerRules"
+        class="register-form"
+        @submit.prevent="handleRegister"
         size="large"
       >
         <el-form-item prop="username">
           <el-input
-            v-model="loginForm.username"
+            v-model="registerForm.username"
             placeholder="请输入用户名"
-            data-testid="input-username"
+            data-testid="input-register-username"
             prefix-icon="User"
             clearable
+            maxlength="20"
           />
         </el-form-item>
 
         <el-form-item prop="password">
           <el-input
-            v-model="loginForm.password"
+            v-model="registerForm.password"
             type="password"
             placeholder="请输入密码"
-            data-testid="input-password"
+            data-testid="input-register-password"
             prefix-icon="Lock"
             show-password
             clearable
-            @keyup.enter="handleLogin"
+          />
+        </el-form-item>
+
+        <el-form-item prop="nickname">
+          <el-input
+            v-model="registerForm.nickname"
+            placeholder="请输入昵称（可选）"
+            data-testid="input-register-nickname"
+            prefix-icon="Avatar"
+            clearable
+            maxlength="20"
           />
         </el-form-item>
 
         <el-form-item>
           <el-button
             type="primary"
-            class="login-btn"
+            class="register-btn"
             :loading="isLoading"
-            data-testid="button-login"
-            @click="handleLogin"
+            data-testid="button-register"
+            @click="handleRegister"
           >
-            {{ isLoading ? '登录中...' : '登录' }}
+            {{ isLoading ? '注册中...' : '立即注册' }}
           </el-button>
         </el-form-item>
       </el-form>
 
-      <div class="login-footer">
-        <p class="register-hint">
-          还没有账户？
+      <div class="register-footer">
+        <p class="login-hint">
+          已有账户？
           <el-button
             type="text"
-            data-testid="link-register"
-            @click="showRegister"
+            data-testid="link-login"
+            @click="goToLogin"
           >
-            立即注册
+            立即登录
           </el-button>
         </p>
       </div>
@@ -69,21 +80,22 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { ElMessage, type FormInstance } from 'element-plus'
-import { User, Lock } from '@element-plus/icons-vue'
+import { User, Lock, Avatar } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const loginFormRef = ref<FormInstance>()
+const registerFormRef = ref<FormInstance>()
 const isLoading = ref(false)
 
 // 表单数据
-const loginForm = reactive({
+const registerForm = reactive({
   username: '',
-  password: ''
+  password: '',
+  nickname: ''
 })
 
 // 表单验证规则
-const loginRules = {
+const registerRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { min: 3, max: 20, message: '用户名长度在 3 到 20 个字符', trigger: 'blur' }
@@ -91,55 +103,59 @@ const loginRules = {
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 6, max: 50, message: '密码长度在 6 到 50 个字符', trigger: 'blur' }
+  ],
+  nickname: [
+    { max: 20, message: '昵称长度不能超过 20 个字符', trigger: 'blur' }
   ]
 }
 
-// 登录处理
-const handleLogin = async () => {
-  if (!loginFormRef.value) return
+// 注册处理
+const handleRegister = async () => {
+  if (!registerFormRef.value) return
 
   try {
-    const valid = await loginFormRef.value.validate()
+    const valid = await registerFormRef.value.validate()
     if (!valid) return
 
     isLoading.value = true
 
-    const response = await fetch('/api/auth/login', {
+    const requestData = {
+      username: registerForm.username.trim(),
+      password: registerForm.password,
+      nickname: registerForm.nickname.trim() || registerForm.username.trim()
+    }
+
+    const response = await fetch('/api/auth/register', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        username: loginForm.username,
-        password: loginForm.password
-      })
+      body: JSON.stringify(requestData)
     })
 
     const result = await response.json()
 
     if (result.success) {
-      // 保存token到localStorage
-      localStorage.setItem('auth_token', result.data.token)
-      localStorage.setItem('user_info', JSON.stringify(result.data.user))
+      ElMessage.success('注册成功！正在跳转到登录页面...')
       
-      ElMessage.success('登录成功！')
-      
-      // 跳转到游戏主页
-      await router.push('/game')
+      // 延迟跳转到登录页面
+      setTimeout(() => {
+        router.push('/')
+      }, 1500)
     } else {
-      ElMessage.error(result.message || '登录失败')
+      ElMessage.error(result.message || '注册失败，请重试')
     }
   } catch (error) {
-    console.error('登录错误:', error)
+    console.error('注册错误:', error)
     ElMessage.error('网络错误，请检查您的连接')
   } finally {
     isLoading.value = false
   }
 }
 
-// 显示注册页面
-const showRegister = () => {
-  router.push('/register')
+// 跳转到登录页面
+const goToLogin = () => {
+  router.push('/')
 }
 
 // 页面初始化
@@ -157,7 +173,7 @@ initPage()
 </script>
 
 <style scoped>
-.login-container {
+.register-container {
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -166,7 +182,7 @@ initPage()
   padding: 20px;
 }
 
-.login-card {
+.register-card {
   background: white;
   border-radius: 16px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
@@ -187,33 +203,33 @@ initPage()
   }
 }
 
-.login-header {
+.register-header {
   text-align: center;
   margin-bottom: 32px;
 }
 
-.login-title {
+.register-title {
   font-size: 28px;
   font-weight: 700;
   color: #2c3e50;
   margin: 0 0 8px 0;
 }
 
-.login-subtitle {
+.register-subtitle {
   font-size: 14px;
   color: #7f8c8d;
   margin: 0;
 }
 
-.login-form {
+.register-form {
   margin-bottom: 24px;
 }
 
-.login-form .el-form-item {
+.register-form .el-form-item {
   margin-bottom: 20px;
 }
 
-.login-btn {
+.register-btn {
   width: 100%;
   height: 46px;
   font-size: 16px;
@@ -224,45 +240,45 @@ initPage()
   transition: all 0.3s ease;
 }
 
-.login-btn:hover {
+.register-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
-.login-footer {
+.register-footer {
   text-align: center;
   padding-top: 20px;
   border-top: 1px solid #ecf0f1;
 }
 
-.register-hint {
+.login-hint {
   color: #7f8c8d;
   font-size: 14px;
   margin: 0;
 }
 
-.register-hint .el-button {
+.login-hint .el-button {
   padding: 0;
   margin-left: 4px;
   font-weight: 600;
   color: #667eea;
 }
 
-.register-hint .el-button:hover {
+.login-hint .el-button:hover {
   color: #764ba2;
 }
 
 /* 响应式设计 */
 @media (max-width: 480px) {
-  .login-container {
+  .register-container {
     padding: 12px;
   }
   
-  .login-card {
+  .register-card {
     padding: 24px;
   }
   
-  .login-title {
+  .register-title {
     font-size: 24px;
   }
 }
