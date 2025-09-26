@@ -440,8 +440,9 @@ onUnmounted(() => {
 
 .waiting-text {
   color: rgba(255, 255, 255, 0.6);
-  font-size: 18px;
+  font-size: 36px;
   font-style: italic;
+  transform: translateY(10px);
 }
 
 .timer-area {
