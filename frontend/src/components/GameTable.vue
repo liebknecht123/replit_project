@@ -101,14 +101,10 @@
       </div>
     </div>
 
-    <!-- 游戏状态提示 -->
-    <div v-if="gameStore.gameStatus !== 'playing'" class="game-status-overlay">
+    <!-- 游戏状态提示 - 仅保留游戏结束状态 -->
+    <div v-if="gameStore.gameStatus === 'finished'" class="game-status-overlay">
       <div class="status-message">
-        <div v-if="gameStore.gameStatus === 'waiting'" class="waiting-status">
-          <el-icon class="status-icon"><Loading /></el-icon>
-          <div>等待游戏开始...</div>
-        </div>
-        <div v-else-if="gameStore.gameStatus === 'finished'" class="finished-status">
+        <div class="finished-status">
           <el-icon class="status-icon"><SuccessFilled /></el-icon>
           <div>游戏结束</div>
         </div>
