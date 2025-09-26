@@ -364,7 +364,7 @@ const handleAutoSort = () => {
       })
   }
   
-  // 优先级 4: 提取钢板 (Consecutive Triplets)
+  // 优先级 4: 提取钢板 (Consecutive Triplets) - 不限花色
   const extractConsecutiveTriplets = () => {
     const availableCards = getAvailableCards()
     const groups = groupByValue(availableCards)
@@ -374,7 +374,7 @@ const handleAutoSort = () => {
       .map(([value, cards]) => ({ value, cards: cards.slice(0, 3) }))
       .sort((a, b) => b.value - a.value)
     
-    // 寻找连续的三张
+    // 寻找连续的三张（跨花色）
     let currentSequence: { value: number, cards: CardData[] }[] = []
     let lastValue = -1
     
@@ -412,7 +412,7 @@ const handleAutoSort = () => {
     }
   }
   
-  // 优先级 5: 提取顺子 (Straights)
+  // 优先级 5: 提取顺子 (Straights) - 不限花色
   const extractStraights = () => {
     const availableCards = getAvailableCards()
     const groups = groupByValue(availableCards)
@@ -424,7 +424,7 @@ const handleAutoSort = () => {
     sortedValues.forEach(value => {
       if (groups.get(value)!.length > 0) {
         if (lastValue === -1 || lastValue - value === 1) {
-          currentSequence.push(groups.get(value)![0]) // 取一张
+          currentSequence.push(groups.get(value)![0]) // 取一张（跨花色）
           lastValue = value
         } else {
           // 检查当前序列是否>=5张
@@ -453,7 +453,7 @@ const handleAutoSort = () => {
     }
   }
   
-  // 优先级 6: 提取三连对 (Consecutive Pairs)
+  // 优先级 6: 提取三连对 (Consecutive Pairs) - 不限花色
   const extractConsecutivePairs = () => {
     const availableCards = getAvailableCards()
     const groups = groupByValue(availableCards)
@@ -463,7 +463,7 @@ const handleAutoSort = () => {
       .map(([value, cards]) => ({ value, cards: cards.slice(0, 2) }))
       .sort((a, b) => b.value - a.value)
     
-    // 寻找连续的对子
+    // 寻找连续的对子（跨花色）
     let currentSequence: { value: number, cards: CardData[] }[] = []
     let lastValue = -1
     
@@ -501,18 +501,18 @@ const handleAutoSort = () => {
     }
   }
   
-  // 收尾 (优先级 7, 8, 9): 处理剩余的三张、对子、单张
+  // 收尾 (优先级 7, 8, 9): 处理剩余的三张、对子、单张 - 不限花色
   const extractRemaining = () => {
     const availableCards = getAvailableCards()
     const groups = groupByValue(availableCards)
     
-    // 按牌值从大到小处理
+    // 按牌值从大到小处理（跨花色）
     const sortedValues = Array.from(groups.keys()).sort((a, b) => b - a)
     
     sortedValues.forEach(value => {
       const valueCards = groups.get(value)!
       if (valueCards.length >= 3) {
-        // 三张
+        // 三张（跨花色）
         const triplet = valueCards.slice(0, 3)
         triplet.forEach(card => {
           const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === value)
@@ -520,7 +520,7 @@ const handleAutoSort = () => {
         })
         sortedHand.push(...triplet)
       } else if (valueCards.length >= 2) {
-        // 对子
+        // 对子（跨花色）
         const pair = valueCards.slice(0, 2)
         pair.forEach(card => {
           const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === value)
