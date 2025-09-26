@@ -514,6 +514,58 @@ const handleAutoSort = () => {
     }
   }
   
+  // 辅助函数：从连续序列中提取多个5张顺子
+  const extractMultipleStraights = (sequence: CardData[]): CardData[][] => {
+    if (sequence.length < 5) return []
+    
+    // 按牌值排序，优先选择权值最大的组合
+    const sorted = [...sequence].sort((a, b) => getCardValue(b) - getCardValue(a))
+    const straights: CardData[][] = []
+    
+    // 贪心算法：尽可能多地提取5张顺子
+    while (sorted.length >= 5) {
+      // 找到最长的连续序列
+      const consecutive = findLongestConsecutive(sorted)
+      if (consecutive.length >= 5) {
+        // 提取5张权值最大的牌组成顺子
+        const straight = consecutive.slice(0, 5)
+        straights.push(straight)
+        
+        // 从可用牌中移除这些牌
+        straight.forEach(card => {
+          const index = sorted.findIndex(c => getCardValue(c) === getCardValue(card))
+          if (index !== -1) sorted.splice(index, 1)
+        })
+      } else {
+        break // 没有足够的连续牌
+      }
+    }
+    
+    return straights
+  }
+  
+  // 辅助函数：找到最长的连续序列
+  const findLongestConsecutive = (cards: CardData[]): CardData[] => {
+    if (cards.length === 0) return []
+    
+    const sorted = [...cards].sort((a, b) => getCardValue(b) - getCardValue(a))
+    const consecutive: CardData[] = [sorted[0]]
+    let lastValue = getCardValue(sorted[0])
+    
+    for (let i = 1; i < sorted.length; i++) {
+      const currentValue = getCardValue(sorted[i])
+      if (lastValue - currentValue === 1) {
+        consecutive.push(sorted[i])
+        lastValue = currentValue
+      } else if (lastValue - currentValue > 1) {
+        break // 不连续了
+      }
+      // 如果 lastValue - currentValue === 0，跳过重复牌值
+    }
+    
+    return consecutive
+  }
+
   // 优先级 5: 提取顺子 (Straights) - 不限花色
   const extractStraights = () => {
     const availableCards = getAvailableCards()
@@ -529,24 +581,18 @@ const handleAutoSort = () => {
           currentSequence.push(groups.get(value)![0]) // 取一张（跨花色）
           lastValue = value
         } else {
-          // 检查当前序列是否正好5张（掼蛋标准顺子）
-          if (currentSequence.length === 5) {
-            currentSequence.forEach(card => {
-              const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === getCardValue(card))
-              if (index !== -1) usedCards.add(index)
+          // 检查当前序列是否能组成顺子
+          if (currentSequence.length >= 5) {
+            // 从连续序列中提取多个5张顺子
+            const processedStraights = extractMultipleStraights(currentSequence)
+            processedStraights.forEach(straight => {
+              straight.forEach(card => {
+                const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === getCardValue(card))
+                if (index !== -1) usedCards.add(index)
+              })
+              sortedHand.push(...straight)
             })
-            sortedHand.push(...currentSequence)
-            console.log(`找到顺子: ${currentSequence.length}张`)
-          } else if (currentSequence.length > 5) {
-            // 如果超过5张，优先选择权值最大的5张组成顺子
-            const sortedSequence = [...currentSequence].sort((a, b) => getCardValue(b) - getCardValue(a))
-            const bestStraight = sortedSequence.slice(0, 5)
-            bestStraight.forEach(card => {
-              const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === getCardValue(card))
-              if (index !== -1) usedCards.add(index)
-            })
-            sortedHand.push(...bestStraight)
-            console.log(`找到顺子: 5张（从${currentSequence.length}张中选择权值最大的）`)
+            console.log(`找到顺子: ${processedStraights.length}个5张顺子（从${currentSequence.length}张连续牌中提取）`)
           }
           currentSequence = groups.get(value)!.length > 0 ? [groups.get(value)![0]] : []
           lastValue = value
@@ -555,23 +601,17 @@ const handleAutoSort = () => {
     })
     
     // 检查最后一个序列
-    if (currentSequence.length === 5) {
-      currentSequence.forEach(card => {
-        const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === getCardValue(card))
-        if (index !== -1) usedCards.add(index)
+    if (currentSequence.length >= 5) {
+      // 从连续序列中提取多个5张顺子
+      const processedStraights = extractMultipleStraights(currentSequence)
+      processedStraights.forEach(straight => {
+        straight.forEach(card => {
+          const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === getCardValue(card))
+          if (index !== -1) usedCards.add(index)
+        })
+        sortedHand.push(...straight)
       })
-      sortedHand.push(...currentSequence)
-      console.log(`找到顺子: ${currentSequence.length}张`)
-    } else if (currentSequence.length > 5) {
-      // 如果超过5张，优先选择权值最大的5张组成顺子
-      const sortedSequence = [...currentSequence].sort((a, b) => getCardValue(b) - getCardValue(a))
-      const bestStraight = sortedSequence.slice(0, 5)
-      bestStraight.forEach(card => {
-        const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === getCardValue(card))
-        if (index !== -1) usedCards.add(index)
-      })
-      sortedHand.push(...bestStraight)
-      console.log(`找到顺子: 5张（从${currentSequence.length}张中选择权值最大的）`)
+      console.log(`找到顺子: ${processedStraights.length}个5张顺子（从${currentSequence.length}张连续牌中提取）`)
     }
   }
   

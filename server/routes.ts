@@ -617,6 +617,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // 离开房间事件（彻底退出，删除数据库记录）
+    socket.on('leave_room', async () => {
+      try {
+        const roomBeforeLeave = gameRoomManager.getPlayerRoom(socket.id);
+        if (!roomBeforeLeave) {
+          socket.emit('leave_room_result', {
+            success: false,
+            message: '你不在任何房间中'
+          });
+          return;
+        }
+
+        // 调用退出房间逻辑
+        const result = await gameRoomManager.leaveRoom(socket.id);
+        
+        if (result) {
+          // 房间还存在，通知其他玩家
+          socket.to(result.id).emit('player_left', {
+            playerId: socket.userInfo.id,
+            playerName: socket.username,
+            message: `${socket.username} 退出了房间`,
+            newHostId: result.hostUserId
+          });
+
+          // 向房间内其他玩家广播更新（每个人收到自己的currentUserId）
+          result.players.forEach(player => {
+            if (player.socketId) {
+              io.to(player.socketId).emit('room_update', {
+                type: 'player_left',
+                roomId: result.id,
+                room: result,
+                players: result.players,
+                status: result.status,
+                hostUserId: result.hostUserId,
+                playerCount: result.players.length,
+                maxPlayers: result.maxPlayers,
+                currentUserId: player.userId,
+                message: `${socket.username} 退出了房间`
+              });
+            }
+          });
+
+          console.log(`玩家 ${socket.username} 退出房间，房间 ${result.id} 还有 ${result.players.length} 人`);
+        } else {
+          // 房间已删除（最后一个人离开）
+          console.log(`玩家 ${socket.username} 退出房间，房间已删除`);
+        }
+
+        // 让socket离开Socket.IO房间
+        socket.leave(roomBeforeLeave.id);
+
+        // 向退出的玩家发送成功响应
+        socket.emit('leave_room_result', {
+          success: true,
+          message: '已成功退出房间'
+        });
+
+        // 向所有连接的客户端广播房间列表更新
+        const allRooms = gameRoomManager.getAllRooms();
+        io.emit('global_rooms_update', {
+          type: 'player_left',
+          rooms: allRooms,
+          message: `${socket.username} 退出了房间`
+        });
+
+      } catch (error: any) {
+        console.error(`离开房间失败: ${error.message}`);
+        socket.emit('leave_room_result', {
+          success: false,
+          message: '退出房间失败，请稍后重试'
+        });
+      }
+    });
+
     // 过牌事件 - 将回合交给下一位玩家
     socket.on('pass_turn', async (data: any) => {
       try {
