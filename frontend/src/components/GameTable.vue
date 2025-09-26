@@ -159,32 +159,7 @@ const lastPlayType = computed(() => gameStore.lastPlay?.playType || '')
 const canRestore = computed(() => hasSorted.value && originalHand.value.length > 0)
 const showRestore = computed(() => hasSorted.value)
 
-// 生成模拟手牌数据（用于演示）
-function generateMockHand(): CardData[] {
-  const suits: CardData['suit'][] = ['hearts', 'diamonds', 'clubs', 'spades']
-  const cards: CardData[] = []
-  
-  // 生成27张牌
-  for (let i = 0; i < 27; i++) {
-    const suit = suits[Math.floor(Math.random() * suits.length)]
-    const rank = Math.floor(Math.random() * 13) + 2 // 2-14
-    cards.push({ suit, rank })
-  }
-  
-  // 添加一张小王
-  if (Math.random() > 0.7) {
-    cards[cards.length - 1] = { suit: 'joker', rank: 'small' }
-  }
-  
-  return cards.sort((a, b) => {
-    // 简单排序：先按花色，再按点数 - 方块、梅花、红桃、黑桃
-    if (a.suit !== b.suit) {
-      const suitOrder = { diamonds: 1, clubs: 2, hearts: 3, spades: 4, joker: 5 }
-      return suitOrder[a.suit] - suitOrder[b.suit]
-    }
-    return Number(a.rank) - Number(b.rank)
-  })
-}
+// 手牌数据现在从WebSocket服务器获取
 
 // 全局缩放逻辑
 const gameTableRef = ref<HTMLElement>()
@@ -579,31 +554,26 @@ const handleRestore = () => {
 }
 
 
-// 初始化模拟数据（用于演示）
-const initMockData = () => {
-  // 初始化模拟玩家数据
-  const mockPlayers = [
-    { id: 'me', name: '我', cardCount: 27, position: 'me' as const, isCurrentPlayer: true },
-    { id: 'top', name: '玩家A', cardCount: 27, position: 'top' as const, isCurrentPlayer: false },
-    { id: 'left', name: '玩家B', cardCount: 27, position: 'left' as const, isCurrentPlayer: false },
-    { id: 'right', name: '玩家C', cardCount: 27, position: 'right' as const, isCurrentPlayer: false }
-  ]
+// 初始化真实游戏数据
+const initRealGameData = () => {
+  // 从localStorage获取用户信息
+  const userInfo = localStorage.getItem('user_info')
+  if (userInfo) {
+    try {
+      const user = JSON.parse(userInfo)
+      gameStore.setMyPlayerId(String(user.id))
+    } catch (error) {
+      console.error('解析用户信息失败:', error)
+    }
+  }
   
-  gameStore.updatePlayers(mockPlayers)
-  gameStore.setMyPlayerId('me')
-  gameStore.updateMyHand(generateMockHand())
-  gameStore.updateCurrentPlayer('me')
-  gameStore.updateGameStatus('playing')
-  gameStore.setTotalTime(30)
-  gameStore.updateTimer(30)
+  // 不再使用模拟数据，等待WebSocket传来真实数据
+  gameStore.updateGameStatus('waiting')
 }
 
 onMounted(() => {
-  // 初始化模拟数据用于演示
-  initMockData()
-  
-  // 启动模拟倒计时器
-  startMockTimer()
+  // 初始化真实游戏数据
+  initRealGameData()
   
   // 初始化缩放 - 需要延迟到DOM渲染完成
   setTimeout(() => {
@@ -619,46 +589,19 @@ onMounted(() => {
     // WebSocket已在service中自动连接
     console.log('尝试连接WebSocket...')
   } else {
-    console.log('使用模拟数据演示界面')
+    console.warn('缺少认证token，无法连接游戏服务器')
   }
 })
 
-// 模拟计时器功能（用于演示）
-let timerInterval: number | null = null
-const startMockTimer = () => {
-  if (timerInterval) clearInterval(timerInterval)
-  
-  timerInterval = setInterval(() => {
-    if (gameStore.gameStatus === 'playing' && gameStore.timeLeft > 0) {
-      gameStore.updateTimer(gameStore.timeLeft - 1)
-      
-      // 时间到了自动切换到下个玩家
-      if (gameStore.timeLeft === 0) {
-        simulateNextPlayer()
-      }
-    }
-  }, 1000)
-}
-
-const simulateNextPlayer = () => {
-  const players = ['me', 'top', 'left', 'right']
-  const currentIndex = players.indexOf(gameStore.currentPlayerId)
-  const nextIndex = (currentIndex + 1) % players.length
-  const nextPlayerId = players[nextIndex]
-  
-  gameStore.updateCurrentPlayer(nextPlayerId)
-  gameStore.updateTimer(30) // 重置计时器
+// 清理函数
+const cleanup = () => {
+  // 清理resize监听器
+  window.removeEventListener('resize', calculateScale)
 }
 
 onUnmounted(() => {
-  // 组件销毁时清理定时器
-  if (timerInterval) {
-    clearInterval(timerInterval)
-    timerInterval = null
-  }
-  
-  // 清理resize监听器
-  window.removeEventListener('resize', calculateScale)
+  // 组件销毁时清理资源
+  cleanup()
 })
 </script>
 

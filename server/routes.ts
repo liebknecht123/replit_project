@@ -24,6 +24,23 @@ const JWT_SECRET = process.env.JWT_SECRET || 'development-secret-key';
 const gameRoomManager = new GameRoomManager();
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // 获取房间列表API
+  app.get('/api/rooms', async (req, res) => {
+    try {
+      const allRooms = gameRoomManager.getAllRooms();
+      res.json({
+        success: true,
+        rooms: allRooms
+      });
+    } catch (error) {
+      console.error('获取房间列表失败:', error);
+      res.status(500).json({
+        success: false,
+        message: '获取房间列表失败'
+      });
+    }
+  });
+
   // 基础认证路由示例
   app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;

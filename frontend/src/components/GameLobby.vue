@@ -41,7 +41,7 @@
               v-for="room in rooms" 
               :key="room.id"
               class="room-card"
-              :class="{ 'room-full': room.players >= room.maxPlayers }"
+              :class="{ 'room-full': room.playerCount >= room.maxPlayers }"
               @click="joinRoom(room.id)"
               :data-testid="`room-card-${room.id}`"
             >
@@ -49,13 +49,13 @@
                 <h4 class="room-name">{{ room.name }}</h4>
                 <p class="room-details">房主: {{ room.host }}</p>
                 <div class="room-status">
-                  <span class="player-count">{{ room.players }}/{{ room.maxPlayers }}</span>
+                  <span class="player-count">{{ room.playerCount }}/{{ room.maxPlayers }}</span>
                   <span class="room-type">{{ room.gameType }}</span>
                 </div>
               </div>
               <div class="room-actions">
                 <el-button 
-                  v-if="room.players < room.maxPlayers" 
+                  v-if="room.playerCount < room.maxPlayers" 
                   type="success" 
                   size="small"
                   :data-testid="`button-join-${room.id}`"
@@ -153,7 +153,7 @@ interface RoomInfo {
   id: string
   name: string
   host: string
-  players: number
+  playerCount: number
   maxPlayers: number
   gameType: string
   hasPassword: boolean
@@ -203,42 +203,25 @@ const getUserInfo = () => {
 const fetchRooms = async () => {
   roomsLoading.value = true
   try {
-    // 模拟API调用 - 稍后可以替换为真实API
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // 模拟房间数据
-    rooms.value = [
-      {
-        id: '1',
-        name: '经典对战房',
-        host: '玩家A',
-        players: 3,
-        maxPlayers: 4,
-        gameType: '经典掼蛋',
-        hasPassword: false
-      },
-      {
-        id: '2', 
-        name: '快速模式',
-        host: '玩家B',
-        players: 4,
-        maxPlayers: 4,
-        gameType: '快速掼蛋',
-        hasPassword: true
-      },
-      {
-        id: '3',
-        name: '新手练习',
-        host: '玩家C',
-        players: 1,
-        maxPlayers: 2,
-        gameType: '经典掼蛋',
-        hasPassword: false
+    // 从服务器获取真实房间列表
+    const response = await fetch('/api/rooms', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
       }
-    ]
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      rooms.value = data.rooms || []
+    } else {
+      console.error('获取房间列表失败:', response.statusText)
+      // 如果API不存在，显示空列表
+      rooms.value = []
+    }
   } catch (error) {
     console.error('获取房间列表失败:', error)
-    ElMessage.error('获取房间列表失败')
+    // 网络错误时显示空列表
+    rooms.value = []
   } finally {
     roomsLoading.value = false
   }
@@ -250,11 +233,14 @@ const refreshRooms = () => {
 }
 
 // 加入房间
-const joinRoom = (roomId: string) => {
+const joinRoom = async (roomId: string) => {
   const room = rooms.value.find(r => r.id === roomId)
-  if (!room) return
+  if (!room) {
+    ElMessage.error('房间不存在')
+    return
+  }
   
-  if (room.players >= room.maxPlayers) {
+  if (room.playerCount >= room.maxPlayers) {
     ElMessage.warning('房间已满')
     return
   }
@@ -265,8 +251,29 @@ const joinRoom = (roomId: string) => {
     return
   }
   
-  // 跳转到游戏页面
-  router.push(`/game?roomId=${roomId}`)
+  try {
+    // 使用WebSocket加入房间
+    const socketService = (await import('../services/socketService')).default
+    socketService.joinRoom(roomId)
+    
+    // 监听加入房间成功事件
+    const handleRoomJoined = (data: any) => {
+      if (data.success) {
+        ElMessage.success('加入房间成功')
+        // 跳转到游戏页面
+        router.push(`/game?roomId=${roomId}`)
+      } else {
+        ElMessage.error(data.message || '加入房间失败')
+      }
+      socketService.socket?.off('room_joined', handleRoomJoined)
+    }
+    
+    socketService.socket?.on('room_joined', handleRoomJoined)
+    
+  } catch (error) {
+    console.error('加入房间失败:', error)
+    ElMessage.error('加入房间失败')
+  }
 }
 
 // 创建房间
@@ -277,20 +284,39 @@ const createRoom = async () => {
   }
   
   createLoading.value = true
+  
   try {
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    // 使用WebSocket创建房间
+    const socketService = (await import('../services/socketService')).default
+    socketService.createRoom(createForm.name.trim())
     
-    // 创建成功后直接进入房间
-    const newRoomId = Date.now().toString()
-    ElMessage.success('房间创建成功')
+    // 监听房间创建成功事件
+    const handleRoomCreated = (data: any) => {
+      if (data.success) {
+        ElMessage.success('房间创建成功')
+        // 跳转到游戏页面
+        router.push(`/game?roomId=${data.room.id}&isHost=true`)
+      } else {
+        ElMessage.error(data.message || '创建房间失败')
+      }
+      createLoading.value = false
+      socketService.socket?.off('room_created', handleRoomCreated)
+    }
     
-    // 跳转到游戏页面
-    router.push(`/game?roomId=${newRoomId}&isHost=true`)
+    socketService.socket?.on('room_created', handleRoomCreated)
+    
+    // 设置超时
+    setTimeout(() => {
+      if (createLoading.value) {
+        createLoading.value = false
+        ElMessage.error('创建房间超时，请重试')
+        socketService.socket?.off('room_created', handleRoomCreated)
+      }
+    }, 10000)
+    
   } catch (error) {
     console.error('创建房间失败:', error)
     ElMessage.error('创建房间失败')
-  } finally {
     createLoading.value = false
   }
 }
@@ -303,9 +329,21 @@ const handleLogout = () => {
   router.push('/')
 }
 
-onMounted(() => {
+onMounted(async () => {
   getUserInfo()
   fetchRooms()
+  
+  // 监听全局房间更新
+  try {
+    const socketService = (await import('../services/socketService')).default
+    socketService.socket?.on('global_rooms_update', (data: any) => {
+      console.log('收到房间列表更新:', data)
+      // 刷新房间列表
+      fetchRooms()
+    })
+  } catch (error) {
+    console.error('设置房间更新监听失败:', error)
+  }
 })
 </script>
 
