@@ -66,6 +66,18 @@ export const useGameStore = defineStore('game', () => {
   const updateTimer = (time: number) => {
     timeLeft.value = time
   }
+
+  const clearTimer = () => {
+    timeLeft.value = 0
+    totalTime.value = 30
+  }
+
+  // 检查游戏是否处于活跃的计时状态
+  const isTimerActive = computed(() => {
+    return gameStatus.value === 'playing' && 
+           players.value.length === 4 && 
+           timeLeft.value > 0
+  })
   
   const setTotalTime = (time: number) => {
     totalTime.value = time
@@ -173,7 +185,9 @@ export const useGameStore = defineStore('game', () => {
     removeCardsFromHand,
     updateCurrentPlayer,
     updateTimer,
+    clearTimer,
     setTotalTime,
+    isTimerActive,
     updateGameStatus,
     updateLastPlay,
     clearLastPlay,

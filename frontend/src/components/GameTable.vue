@@ -52,7 +52,8 @@
           <GameTimer
             :time-left="gameStore.timeLeft"
             :total-time="gameStore.totalTime"
-            :is-active="gameStore.gameStatus === 'playing'"
+            :is-active="gameStore.isTimerActive"
+            :is-connected="socketService.isConnected()"
           />
         </div>
 

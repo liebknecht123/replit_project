@@ -612,6 +612,12 @@ export class GameRoomManager {
   startThinkingTimer(roomId: string): void {
     const room = this.rooms.get(roomId);
     if (!room || !room.gameState) return;
+    
+    // 权威性检查：只有房间满4人且游戏正在进行时才启动计时器
+    if (room.players.length !== 4 || room.status !== 'playing') {
+      console.log(`房间 ${roomId} 不满足启动思考计时器条件：玩家数=${room.players.length}, 状态=${room.status}`);
+      return;
+    }
 
     // 清除之前的定时器
     this.clearTimer(roomId);
@@ -644,6 +650,12 @@ export class GameRoomManager {
   startPlayingTimer(roomId: string): void {
     const room = this.rooms.get(roomId);
     if (!room || !room.gameState) return;
+    
+    // 权威性检查：只有房间满4人且游戏正在进行时才启动计时器
+    if (room.players.length !== 4 || room.status !== 'playing') {
+      console.log(`房间 ${roomId} 不满足启动出牌计时器条件：玩家数=${room.players.length}, 状态=${room.status}`);
+      return;
+    }
 
     // 清除之前的定时器
     this.clearTimer(roomId);
@@ -685,6 +697,14 @@ export class GameRoomManager {
         clearInterval(timer);
         return;
       }
+      
+      // 权威性检查：如果房间条件不满足，停止计时器
+      if (room.players.length !== 4 || room.status !== 'playing') {
+        console.log(`房间 ${roomId} 计时器中止：条件不满足，玩家数=${room.players.length}, 状态=${room.status}`);
+        clearInterval(timer);
+        this.gameTimers.delete(roomId);
+        return;
+      }
 
       // 更新剩余时间
       room.gameState.timerState.remainingTime = remainingTime;
@@ -708,6 +728,12 @@ export class GameRoomManager {
 
     const room = this.rooms.get(roomId);
     if (!room || !room.gameState || !room.gameState.timerState) return;
+    
+    // 权威性检查：只有房间满4人且游戏正在进行时才广播计时器更新
+    if (room.players.length !== 4 || room.status !== 'playing') {
+      console.log(`房间 ${roomId} 不满足计时器广播条件：玩家数=${room.players.length}, 状态=${room.status}`);
+      return;
+    }
 
     this.io.to(roomId).emit('timer_update', {
       phase: room.gameState.timerState.phase,

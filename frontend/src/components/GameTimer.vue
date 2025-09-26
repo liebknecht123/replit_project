@@ -22,10 +22,12 @@ interface Props {
   timeLeft: number // 剩余时间（秒）
   totalTime: number // 总时间（秒）
   isActive?: boolean
+  isConnected?: boolean // WebSocket连接状态
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  isActive: false
+  isActive: false,
+  isConnected: true
 })
 
 const progressPercent = computed(() => {
@@ -43,16 +45,19 @@ const isDanger = computed(() => props.timeLeft <= props.totalTime * 0.1)
 
 // 倒计时音效提示
 const playWarningSound = () => {
-  // 这里可以添加音效
-  console.log('Warning: Time running out!')
+  // 这里可以添加音效 - 暂时移除console.log避免噪音
+  // console.log('Warning: Time running out!')
 }
 
 const playDangerSound = () => {
-  // 这里可以添加紧急音效
-  console.log('Danger: Critical time!')
+  // 这里可以添加紧急音效 - 暂时移除console.log避免噪音
+  // console.log('Danger: Critical time!')
 }
 
 watch(() => props.timeLeft, (newTime, oldTime) => {
+  // 只有在连接正常且游戏活跃时才播放警告音
+  if (!props.isConnected || !props.isActive || newTime <= 0) return
+  
   if (newTime <= props.totalTime * 0.3 && oldTime > props.totalTime * 0.3) {
     playWarningSound()
   }

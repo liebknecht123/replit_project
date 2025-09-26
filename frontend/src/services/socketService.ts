@@ -18,14 +18,22 @@ class SocketService {
 
   connect() {
     const token = localStorage.getItem('auth_token')
-    const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000'
+    
+    // 如果没有token，不要尝试连接WebSocket
+    if (!token) {
+      console.warn('缺少认证token，无法连接WebSocket')
+      return
+    }
+    
+    const serverUrl = window.location.origin || 'http://localhost:5000'
     
     this.socket = io(serverUrl, {
       auth: {
         token: token
       },
       transports: ['websocket'],
-      forceNew: true
+      forceNew: true,
+      path: '/ws' // 使用正确的WebSocket路径
     })
 
     this.setupEventListeners()
@@ -42,11 +50,15 @@ class SocketService {
 
     this.socket.on('disconnect', () => {
       console.log('❌ WebSocket连接断开')
+      // 连接断开时清除游戏计时器状态
+      this.gameStore.clearTimer()
       this.handleReconnect()
     })
 
     this.socket.on('connect_error', (error) => {
       console.error('WebSocket连接错误:', error.message)
+      // 连接错误时清除游戏计时器状态
+      this.gameStore.clearTimer()
       this.handleReconnect()
     })
 
@@ -84,12 +96,22 @@ class SocketService {
 
     this.socket.on('turn_update', (data) => {
       console.log('轮次更新:', data)
-      this.gameStore.updateCurrentPlayer(data.currentPlayer)
-      this.gameStore.updateTimer(data.timeLeft)
+      this.gameStore.updateCurrentPlayer(data.currentPlayerId || data.currentPlayer)
+      // 只有在游戏正在进行且房间满员时才更新倒计时
+      if (this.gameStore.gameStatus === 'playing' && 
+          this.gameStore.players.length === 4 && 
+          data.timeLeft !== undefined) {
+        this.gameStore.updateTimer(data.timeLeft)
+      }
     })
 
     this.socket.on('timer_update', (data) => {
-      this.gameStore.updateTimer(data.timeLeft)
+      // 只有在WebSocket连接正常、游戏正在进行且房间满员时才更新倒计时
+      if (this.isConnected() && 
+          this.gameStore.gameStatus === 'playing' && 
+          this.gameStore.players.length === 4) {
+        this.gameStore.updateTimer(data.remainingTime || data.timeLeft)
+      }
     })
 
     this.socket.on('card_played', (data) => {
