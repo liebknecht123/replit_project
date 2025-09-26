@@ -2,19 +2,29 @@
   <div class="game-container">
     <div ref="gameTableRef" class="game-table">
     
-    <!-- 左上角回到大厅按钮 -->
+    <!-- 左上角回到大厅和退出房间按钮 -->
     <div 
       v-if="shouldShowBackButton" 
-      class="back-to-lobby-corner"
+      class="corner-buttons"
     >
       <button 
-        class="back-to-lobby-btn-new"
+        class="corner-btn back-to-lobby-btn"
         @click="handleBackToLobby"
         data-testid="button-back-to-lobby"
         title="暂时离开房间"
       >
         <el-icon><ArrowLeft /></el-icon>
         <span>回到大厅</span>
+      </button>
+      
+      <button 
+        class="corner-btn exit-room-btn"
+        @click="handleExitRoom"
+        data-testid="button-exit-room"
+        title="永久退出房间"
+      >
+        <el-icon><Close /></el-icon>
+        <span>退出房间</span>
       </button>
     </div>
     
@@ -150,7 +160,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { Loading, SuccessFilled, ArrowLeft } from '@element-plus/icons-vue'
+import { Loading, SuccessFilled, ArrowLeft, Close } from '@element-plus/icons-vue'
 import PlayerAvatar from './PlayerAvatar.vue'
 import PlayerHand from './PlayerHand.vue'
 import Card from './Card.vue'
@@ -159,9 +169,12 @@ import GameTimer from './GameTimer.vue'
 import { useGameStore } from '@/stores/gameStore'
 import socketService from '@/services/socketService'
 import type { CardData } from '@/types/game'
+import { useRouter } from 'wouter'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 // 使用状态管理
 const gameStore = useGameStore()
+const [, router] = useRouter()
 const playerHandRef = ref()
 const selectedCards = ref<CardData[]>([])
 
@@ -221,9 +234,40 @@ const handleKickPlayer = (playerId: string) => {
 // 回到大厅功能
 const handleBackToLobby = () => {
   console.log('回到大厅')
-  socketService.leaveRoom()
-  // 跳转到大厅页面
-  window.location.href = '/lobby'
+  
+  // 暂离房间（保留位置）
+  socketService.temporaryLeaveRoom()
+  
+  // 导航回大厅
+  router.push('/')
+}
+
+// 退出房间
+const handleExitRoom = () => {
+  console.log('退出房间')
+  
+  // 显示确认对话框
+  ElMessageBox.confirm(
+    '确定要退出房间吗？退出后将失去房间位置，如果您是房主，房间可能会转移给其他玩家或关闭。',
+    '确认退出',
+    {
+      confirmButtonText: '确定退出',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  )
+  .then(() => {
+    // 永久退出房间
+    socketService.leaveRoom()
+    
+    // 导航回大厅
+    router.push('/')
+    ElMessage.success('已退出房间')
+  })
+  .catch(() => {
+    // 用户取消
+    console.log('用户取消退出房间')
+  })
 }
 
 // 手牌数据现在从WebSocket服务器获取
@@ -859,20 +903,23 @@ onUnmounted(() => {
   margin-bottom: 10px;
 }
 
-/* 新的左上角回到大厅按钮 */
-.back-to-lobby-corner {
+/* 左上角按钮容器 */
+.corner-buttons {
   position: absolute;
   top: 20px;
   left: 20px;
   z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.back-to-lobby-btn-new {
+/* 通用按钮样式 */
+.corner-btn {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 10px 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: none;
   border-radius: 12px;
   color: white;
@@ -880,27 +927,41 @@ onUnmounted(() => {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+
+/* 回到大厅按钮 */
+.back-to-lobby-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
-.back-to-lobby-btn-new:hover {
+.back-to-lobby-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
   background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
 }
 
-.back-to-lobby-btn-new:active {
+.back-to-lobby-btn:active {
   transform: translateY(0);
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
 }
 
-.back-to-lobby-btn-new span {
-  white-space: nowrap;
+/* 退出房间按钮 */
+.exit-room-btn {
+  background: linear-gradient(135deg, #f56565 0%, #c53030 100%);
+  box-shadow: 0 4px 12px rgba(245, 101, 101, 0.4);
 }
 
-/* 移除旧按钮样式 */
-.back-to-lobby-btn {
-  display: none;
+.exit-room-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(245, 101, 101, 0.6);
+  background: linear-gradient(135deg, #e53e3e 0%, #9b2c2c 100%);
+}
+
+.exit-room-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(245, 101, 101, 0.4);
 }
 
 .game-status-overlay {
