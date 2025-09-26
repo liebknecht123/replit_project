@@ -61,11 +61,12 @@
           <ActionPanel
             :can-play="canPlay"
             :can-pass="canPass"
+            :can-auto-sort="true"
             :is-my-turn="isMyTurn"
             @play="handlePlay"
             @pass="handlePass"
             @hint="handleHint"
-            @auto-play="handleAutoPlay"
+            @auto-sort="handleAutoSort"
           />
         </div>
       </div>
@@ -240,9 +241,9 @@ const handleHint = () => {
   // 这里可以实现智能提示逻辑
 }
 
-const handleAutoPlay = () => {
-  console.log('智能托管')
-  // 这里可以实现托管逻辑
+const handleAutoSort = () => {
+  console.log('智能整理')
+  // 这里将实现智能整理牌型的逻辑
 }
 
 

@@ -37,12 +37,12 @@
       <el-button
         type="success"
         size="large"
-        @click="handleAutoPlay"
-        :disabled="!canAutoPlay"
+        @click="handleAutoSort"
+        :disabled="!canAutoSort"
         class="action-btn auto-btn"
       >
         <el-icon><MagicStick /></el-icon>
-        智能托管
+        智能整理
       </el-button>
     </div>
   </div>
@@ -60,7 +60,7 @@ interface Props {
   canPlay?: boolean
   canPass?: boolean
   canHint?: boolean
-  canAutoPlay?: boolean
+  canAutoSort?: boolean
   isMyTurn?: boolean
 }
 
@@ -68,7 +68,7 @@ const props = withDefaults(defineProps<Props>(), {
   canPlay: false,
   canPass: false,
   canHint: true,
-  canAutoPlay: true,
+  canAutoSort: true,
   isMyTurn: false
 })
 
@@ -76,7 +76,7 @@ const emit = defineEmits<{
   play: []
   pass: []
   hint: []
-  autoPlay: []
+  autoSort: []
 }>()
 
 const handlePlay = () => {
@@ -97,9 +97,9 @@ const handleHint = () => {
   }
 }
 
-const handleAutoPlay = () => {
-  if (props.canAutoPlay) {
-    emit('autoPlay')
+const handleAutoSort = () => {
+  if (props.canAutoSort) {
+    emit('autoSort')
   }
 }
 </script>
