@@ -3,11 +3,9 @@
     <div ref="gameTableRef" class="game-table">
     
     <!-- 左上角回到大厅和退出房间按钮 -->
-    <div 
-      v-if="shouldShowBackButton" 
-      class="corner-buttons"
-    >
+    <div class="corner-buttons">
       <button 
+        v-if="shouldShowBackButton"
         class="corner-btn back-to-lobby-btn"
         @click="handleBackToLobby"
         data-testid="button-back-to-lobby"
@@ -17,6 +15,7 @@
         <span>回到大厅</span>
       </button>
       
+      <!-- 退出房间按钮始终显示 -->
       <button 
         class="corner-btn exit-room-btn"
         @click="handleExitRoom"
@@ -169,12 +168,12 @@ import GameTimer from './GameTimer.vue'
 import { useGameStore } from '@/stores/gameStore'
 import socketService from '@/services/socketService'
 import type { CardData } from '@/types/game'
-import { useRouter } from 'wouter'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 // 使用状态管理
 const gameStore = useGameStore()
-const [, router] = useRouter()
+const router = useRouter()
 const playerHandRef = ref()
 const selectedCards = ref<CardData[]>([])
 
