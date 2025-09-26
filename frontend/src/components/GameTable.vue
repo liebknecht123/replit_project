@@ -397,6 +397,7 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  transform: translateY(50px);
 }
 
 .last-played {
@@ -445,12 +446,14 @@ onUnmounted(() => {
 .timer-area {
   display: flex;
   justify-content: center;
+  transform: translateY(100px);
 }
 
 .center-action-area {
   display: flex;
   justify-content: center;
   margin-top: 20px;
+  transform: translateY(100px);
 }
 
 .bottom-area {
