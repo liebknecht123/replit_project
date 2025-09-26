@@ -14,6 +14,12 @@ const router = createRouter({
       component: () => import('@/components/RegisterForm.vue')
     },
     {
+      path: '/lobby',
+      name: 'lobby',
+      component: () => import('@/components/GameLobby.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/game',
       name: 'game',
       component: () => import('@/components/GameTable.vue'),
@@ -30,8 +36,8 @@ router.beforeEach((to, from, next) => {
     // 需要登录但没有token，跳转到登录页
     next('/')
   } else if (to.name === 'login' && token) {
-    // 已登录但访问登录页，跳转到游戏页
-    next('/game')
+    // 已登录但访问登录页，跳转到游戏大厅
+    next('/lobby')
   } else {
     next()
   }

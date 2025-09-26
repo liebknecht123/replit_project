@@ -124,8 +124,8 @@ const handleLogin = async () => {
       
       ElMessage.success('登录成功！')
       
-      // 跳转到游戏主页
-      await router.push('/game')
+      // 跳转到游戏大厅
+      await router.push('/lobby')
     } else {
       ElMessage.error(result.message || '登录失败')
     }
@@ -147,8 +147,8 @@ const initPage = () => {
   // 检查是否已经登录
   const token = localStorage.getItem('auth_token')
   if (token) {
-    // 已登录，直接跳转到游戏页面
-    router.push('/game')
+    // 已登录，直接跳转到游戏大厅
+    router.push('/lobby')
   }
 }
 

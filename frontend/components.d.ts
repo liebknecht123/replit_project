@@ -11,7 +11,14 @@ declare module 'vue' {
     ActionPanel: typeof import('./src/components/ActionPanel.vue')['default']
     Card: typeof import('./src/components/Card.vue')['default']
     ElButton: typeof import('element-plus/es')['ElButton']
+    ElForm: typeof import('element-plus/es')['ElForm']
+    ElFormItem: typeof import('element-plus/es')['ElFormItem']
     ElIcon: typeof import('element-plus/es')['ElIcon']
+    ElInput: typeof import('element-plus/es')['ElInput']
+    ElOption: typeof import('element-plus/es')['ElOption']
+    ElSelect: typeof import('element-plus/es')['ElSelect']
+    ElTag: typeof import('element-plus/es')['ElTag']
+    GameLobby: typeof import('./src/components/GameLobby.vue')['default']
     GameTable: typeof import('./src/components/GameTable.vue')['default']
     GameTimer: typeof import('./src/components/GameTimer.vue')['default']
     LoginForm: typeof import('./src/components/LoginForm.vue')['default']
@@ -20,5 +27,8 @@ declare module 'vue' {
     RegisterForm: typeof import('./src/components/RegisterForm.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+  }
+  export interface GlobalDirectives {
+    vLoading: typeof import('element-plus/es')['ElLoadingDirective']
   }
 }

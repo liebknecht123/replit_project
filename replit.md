@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a comprehensive monorepo project for the "掼蛋" (Guan Dan) card game featuring a unified Web-based frontend architecture. The project includes a React 18-based web application with TypeScript, Node.js Express API backend, and real-time WebSocket functionality. The project features a completely redesigned game interface with professional-grade visual effects including horizontal timer bars, transparent central play areas, and advanced card fan layouts with 80% visibility guarantee.
+This is a comprehensive monorepo project for the "掼蛋" (Guan Dan) card game featuring a unified Web-based frontend architecture. The project includes a Vue.js 3-based web application with TypeScript, Node.js Express API backend, and real-time WebSocket functionality. The project features a completely redesigned game interface with professional-grade visual effects including horizontal timer bars, transparent central play areas, advanced card fan layouts with 80% visibility guarantee, and a comprehensive game lobby system for room management.
 
 ## User Preferences
 
@@ -12,14 +12,15 @@ Language preference: Chinese (中文) - Use Chinese when building and explaining
 ## System Architecture
 
 ### Frontend Architecture  
-- **Unified Web Frontend**: React 18 with TypeScript architecture for comprehensive game client
+- **Unified Web Frontend**: Vue.js 3 with TypeScript architecture for comprehensive game client
 - **Recent Major Overhaul**: Professional-grade visual redesign completed with horizontal timer system, transparent central areas, and advanced card layouts
-- **UI Framework**: Tailwind CSS with shadcn/ui component library for consistent design
-- **State Management**: TanStack React Query for server state management and API caching
-- **Routing**: Wouter for lightweight client-side routing
-- **Forms**: React Hook Form with Zod validation for type-safe form handling
-- **Game Interface**: Real-time game lobby with professional timer system and advanced card game functionality
+- **UI Framework**: Element Plus component library with custom styling for consistent design
+- **State Management**: Pinia for Vue.js state management and local storage for session data
+- **Routing**: Vue Router for client-side routing with authentication guards
+- **Game Lobby System**: Complete lobby interface with room listing, creation, and join functionality
+- **Game Interface**: Real-time game table with professional timer system and advanced card game functionality
 - **Card Layout System**: Fan-style hand layout with guaranteed 80% card visibility and smooth hover/selection interactions
+- **Smart Card Sorting**: 9-priority intelligent sorting algorithm for authentic Guan Dan gameplay
 
 ### Backend Architecture
 - **API Server**: Node.js Express server with TypeScript running on port 5000
@@ -61,15 +62,16 @@ Language preference: Chinese (中文) - Use Chinese when building and explaining
 ## External Dependencies
 
 ### Core Framework Dependencies
-- **React Ecosystem**: React 18, React DOM, React Query for frontend state management
+- **Vue.js Ecosystem**: Vue.js 3, Vue Router, Pinia for frontend architecture and state management
+- **Element Plus**: Comprehensive Vue.js 3 UI component library for professional interface
 - **Express**: Core backend framework with middleware support (CORS, Helmet, Morgan)
 - **Database**: Neon PostgreSQL serverless database with connection pooling
 
 ### UI and Styling
-- **Tailwind CSS**: Utility-first CSS framework with custom configuration
-- **Radix UI**: Accessible component primitives for complex UI components
-- **Lucide React**: Icon library for consistent iconography
-- **shadcn/ui**: Pre-built component library built on Radix and Tailwind
+- **Element Plus**: Professional Vue.js 3 component library with built-in theming
+- **Custom CSS**: Professional game-themed styling with green gradient backgrounds
+- **Element Plus Icons**: Complete icon set for Vue.js applications
+- **Professional Game Interface**: Card game optimized UI with transparent overlays and gradients
 
 ### Development Tools
 - **Vite**: Frontend build tool and development server
@@ -79,6 +81,7 @@ Language preference: Chinese (中文) - Use Chinese when building and explaining
 
 ### Additional Services
 - **Session Storage**: PostgreSQL-based session management with connect-pg-simple
-- **Form Handling**: React Hook Form with Hookform Resolvers for validation
-- **Date Handling**: date-fns for consistent date formatting and manipulation
+- **Form Handling**: Element Plus form components with built-in validation
+- **Game Logic**: Advanced Guan Dan card sorting with cross-suit combination support
+- **Smart Features**: Intelligent card sorting and restore functionality for enhanced gameplay
 - **Replit Integration**: Custom Vite plugins for Replit-specific development features
