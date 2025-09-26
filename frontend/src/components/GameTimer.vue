@@ -64,10 +64,8 @@ watch(() => props.timeLeft, (newTime, oldTime) => {
 
 <style scoped>
 .game-timer {
-  position: absolute;
-  bottom: 140px;
-  left: 50%;
-  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
   transition: all 0.3s ease;
   z-index: 10;
 }
