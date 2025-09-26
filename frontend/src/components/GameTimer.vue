@@ -85,7 +85,7 @@ watch(() => props.timeLeft, (newTime, oldTime) => {
 }
 
 .time-display {
-  font-size: 14px;
+  font-size: 35px;
   font-weight: bold;
   font-family: 'Courier New', monospace;
 }
