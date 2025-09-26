@@ -304,7 +304,13 @@ const returnToRoom = async () => {
     if (data.success) {
       // 重连成功，导航到游戏房间（使用正确的路由格式）
       router.push(`/game?roomId=${currentRoom.value.id}`)
-      ElMessage.success('成功返回房间')
+      
+      // 根据返回的消息显示不同的反馈
+      if (data.message === '已在房间中') {
+        ElMessage.success('直接返回房间')
+      } else {
+        ElMessage.success('成功重连房间')
+      }
     } else {
       ElMessage.error(data.message || '返回房间失败')
     }

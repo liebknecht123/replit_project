@@ -1,6 +1,23 @@
 <template>
   <div class="game-container">
     <div ref="gameTableRef" class="game-table">
+    
+    <!-- 左上角回到大厅按钮 -->
+    <div 
+      v-if="shouldShowBackButton" 
+      class="back-to-lobby-corner"
+    >
+      <button 
+        class="back-to-lobby-btn-new"
+        @click="handleBackToLobby"
+        data-testid="button-back-to-lobby"
+        title="暂时离开房间"
+      >
+        <el-icon><ArrowLeft /></el-icon>
+        <span>回到大厅</span>
+      </button>
+    </div>
+    
     <!-- 顶部玩家 -->
     <div class="top-area">
       <PlayerAvatar
@@ -105,17 +122,7 @@
     <!-- 底部区域 - 我的区域 -->
     <div class="bottom-area">
       <div class="my-area">
-        <!-- 控制按钮区域 -->
-        <div class="control-buttons">
-          <button 
-            class="back-to-lobby-btn"
-            @click="handleBackToLobby"
-            data-testid="button-back-to-lobby"
-          >
-            <el-icon><Loading /></el-icon>
-            回到大厅
-          </button>
-        </div>
+        <!-- 控制按钮区域已移到左上角 -->
         
         <!-- 我的手牌 -->
         <div class="hand-area">
@@ -187,6 +194,22 @@ const currentUserId = computed(() => gameStore.myPlayerId)
 const isCurrentUserHost = computed(() => {
   const myPlayer = gameStore.players.find(p => p.id === currentUserId.value)
   return myPlayer?.isHost || false
+})
+
+// 回到大厅按钮显示逻辑
+const shouldShowBackButton = computed(() => {
+  // 等待玩家阶段：人数不足4人时显示
+  if (gameStore.gameStatus === 'waiting') {
+    return gameStore.players.length < 4
+  }
+  
+  // 游戏进行中：总是显示，让玩家可以暂离
+  if (gameStore.gameStatus === 'playing') {
+    return true
+  }
+  
+  // 其他状态（如游戏结束）不显示
+  return false
 })
 
 // 踢人处理方法
@@ -816,24 +839,48 @@ onUnmounted(() => {
   margin-bottom: 10px;
 }
 
-.back-to-lobby-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  color: white;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s ease;
+/* 新的左上角回到大厅按钮 */
+.back-to-lobby-corner {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 10;
 }
 
-.back-to-lobby-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
-  transform: translateY(-1px);
+.back-to-lobby-btn-new {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.back-to-lobby-btn-new:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+}
+
+.back-to-lobby-btn-new:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+}
+
+.back-to-lobby-btn-new span {
+  white-space: nowrap;
+}
+
+/* 移除旧按钮样式 */
+.back-to-lobby-btn {
+  display: none;
 }
 
 .game-status-overlay {

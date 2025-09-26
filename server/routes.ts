@@ -114,9 +114,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (player.isConnected) {
+        // 用户已在房间中，直接返回成功状态
+        console.log(`✅ 用户 ${decoded.userId} 已在房间 ${roomId} 中，直接返回房间信息`);
         return res.json({
-          success: false,
-          message: '用户已在房间中，无需重连'
+          success: true,
+          message: '已在房间中',
+          room: {
+            id: room.id,
+            name: room.name
+          }
         });
       }
       
