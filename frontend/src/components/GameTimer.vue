@@ -91,7 +91,7 @@ watch(() => props.timeLeft, (newTime, oldTime) => {
 }
 
 .timer-label {
-  font-size: 10px;
+  font-size: 18px;
   opacity: 0.8;
 }
 
