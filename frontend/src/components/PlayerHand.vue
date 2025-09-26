@@ -97,8 +97,8 @@ const groupedAndSortedCards = computed(() => {
 
 const getCardStyle = (index: number) => {
   const totalCards = props.cards.length
-  const maxWidth = 1200 // 增加最大宽度以适应更多卡牌
-  const cardWidth = 45
+  const maxWidth = 1400 // 增加最大宽度以适应更大的卡牌
+  const cardWidth = 67.5 // 卡牌宽度增大1.5倍
   
   // 计算扇形排列的参数 - 严格确保80%可见度
   // 80%可见度意味着间距必须至少是卡牌宽度的80%
@@ -167,12 +167,12 @@ defineExpose({
 .hand-container {
   display: flex;
   position: relative;
-  height: 120px;
+  height: 150px;
   align-items: flex-end;
   justify-content: center;
   width: 100%;
-  min-width: 600px;
-  max-width: 1400px;
+  min-width: 800px;
+  max-width: 1600px;
 }
 
 .hand-card {

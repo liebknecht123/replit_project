@@ -58,17 +58,17 @@ const displayRank = computed(() => {
 
 <style scoped>
 .card {
-  width: 45px;
-  height: 63px;
+  width: 67.5px;
+  height: 94.5px;
   background: white;
-  border-radius: 6px;
-  border: 1.5px solid #ddd;
+  border-radius: 9px;
+  border: 2px solid #ddd;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.1);
   user-select: none;
   position: relative;
   transform: translateX(var(--card-x, 0)) translateY(var(--card-y, 0)) rotate(var(--card-rotation, 0deg));
@@ -91,17 +91,18 @@ const displayRank = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   font-weight: bold;
 }
 
 .rank {
-  font-size: 14px;
+  font-size: 21px;
   line-height: 1;
-  margin-bottom: 2px;
+  margin-bottom: 3px;
 }
 
 .suit {
-  font-size: 18px;
+  font-size: 27px;
   line-height: 1;
 }
 
