@@ -177,7 +177,7 @@ defineExpose({
   display: flex;
   gap: 16px;
   color: white;
-  font-size: 14px;
+  font-size: 25.2px;
   padding: 8px 16px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 20px;
