@@ -10,6 +10,7 @@ export interface Player {
   cardCount: number
   position: 'me' | 'top' | 'left' | 'right'
   isCurrentPlayer: boolean
+  isHost: boolean
   avatar?: string
 }
 

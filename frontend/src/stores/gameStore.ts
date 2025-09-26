@@ -43,8 +43,37 @@ export const useGameStore = defineStore('game', () => {
     roomId.value = id
   }
   
-  const updatePlayers = (newPlayers: Player[]) => {
-    players.value = newPlayers
+  const updatePlayers = (newPlayers: any[]) => {
+    // 将服务器的ConnectedPlayer数据转换为前端Player格式
+    const myPlayerIndex = newPlayers.findIndex(p => 
+      (p.userId?.toString() || p.id) === myPlayerId.value
+    )
+    
+    players.value = newPlayers.map((serverPlayer, index) => ({
+      id: serverPlayer.userId?.toString() || serverPlayer.id,
+      name: serverPlayer.username || serverPlayer.name,
+      cardCount: serverPlayer.cardCount || 27, // 默认手牌数
+      position: getPlayerPosition(index, newPlayers.length, myPlayerIndex),
+      isCurrentPlayer: serverPlayer.isCurrentPlayer || false,
+      isHost: serverPlayer.isHost || false,
+      avatar: serverPlayer.avatar
+    }))
+  }
+
+  // 根据玩家索引和总数计算位置
+  const getPlayerPosition = (index: number, totalPlayers: number, myIndex: number): 'me' | 'top' | 'left' | 'right' => {
+    // 当前用户的位置
+    if (index === myIndex) return 'me'
+    
+    // 计算相对位置
+    const relativeIndex = (index - myIndex + totalPlayers) % totalPlayers
+    
+    if (totalPlayers === 2) return 'top'
+    if (totalPlayers === 3) return relativeIndex === 1 ? 'left' : 'top'
+    // 4个玩家时：相对位置1=top, 2=left, 3=right
+    if (relativeIndex === 1) return 'top'
+    if (relativeIndex === 2) return 'left'
+    return 'right'
   }
   
   const updateMyHand = (cards: CardData[]) => {

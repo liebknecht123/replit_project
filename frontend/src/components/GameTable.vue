@@ -8,7 +8,12 @@
         :player-name="topPlayer.name"
         :card-count="topPlayer.cardCount"
         :is-current-player="topPlayer.isCurrentPlayer"
+        :player-id="topPlayer.id"
+        :can-kick="!topPlayer.isHost && topPlayer.id !== currentUserId"
+        :is-current-user-host="isCurrentUserHost"
+        :game-status="gameStore.gameStatus"
         position="top"
+        @kick="handleKickPlayer"
       />
     </div>
 
@@ -21,7 +26,12 @@
           :player-name="leftPlayer.name"
           :card-count="leftPlayer.cardCount"
           :is-current-player="leftPlayer.isCurrentPlayer"
+          :player-id="leftPlayer.id"
+          :can-kick="!leftPlayer.isHost && leftPlayer.id !== currentUserId"
+          :is-current-user-host="isCurrentUserHost"
+          :game-status="gameStore.gameStatus"
           position="left"
+          @kick="handleKickPlayer"
         />
       </div>
 
@@ -82,7 +92,12 @@
           :player-name="rightPlayer.name"
           :card-count="rightPlayer.cardCount"
           :is-current-player="rightPlayer.isCurrentPlayer"
+          :player-id="rightPlayer.id"
+          :can-kick="!rightPlayer.isHost && rightPlayer.id !== currentUserId"
+          :is-current-user-host="isCurrentUserHost"
+          :game-status="gameStore.gameStatus"
           position="right"
+          @kick="handleKickPlayer"
         />
       </div>
     </div>
@@ -154,6 +169,19 @@ const lastPlayType = computed(() => gameStore.lastPlay?.playType || '')
 // 恢复功能相关计算属性
 const canRestore = computed(() => hasSorted.value && originalHand.value.length > 0)
 const showRestore = computed(() => hasSorted.value)
+
+// 踢人功能相关计算属性
+const currentUserId = computed(() => gameStore.myPlayerId)
+const isCurrentUserHost = computed(() => {
+  const myPlayer = gameStore.players.find(p => p.id === currentUserId.value)
+  return myPlayer?.isHost || false
+})
+
+// 踢人处理方法
+const handleKickPlayer = (playerId: string) => {
+  console.log('准备踢出玩家:', playerId)
+  socketService.kickPlayer(parseInt(playerId))
+}
 
 // 手牌数据现在从WebSocket服务器获取
 

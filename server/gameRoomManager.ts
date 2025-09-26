@@ -352,6 +352,53 @@ export class GameRoomManager {
     return room;
   }
 
+  // 踢出玩家（仅房主可操作，游戏未开始时）
+  async kickPlayer(roomId: string, hostUserId: number, targetUserId: number): Promise<{ success: boolean; message: string; room?: ActiveRoom; kickedPlayer?: ConnectedPlayer }> {
+    const room = this.rooms.get(roomId);
+    if (!room) {
+      return { success: false, message: '房间不存在' };
+    }
+
+    // 检查是否为房主
+    if (room.hostUserId !== hostUserId) {
+      return { success: false, message: '只有房主可以踢出玩家' };
+    }
+
+    // 检查游戏状态
+    if (room.status !== 'waiting') {
+      return { success: false, message: '游戏已开始，无法踢出玩家' };
+    }
+
+    // 不能踢出自己
+    if (hostUserId === targetUserId) {
+      return { success: false, message: '不能踢出自己' };
+    }
+
+    // 查找目标玩家
+    const targetPlayerIndex = room.players.findIndex(p => p.userId === targetUserId);
+    if (targetPlayerIndex === -1) {
+      return { success: false, message: '玩家不在房间中' };
+    }
+
+    const kickedPlayer = room.players[targetPlayerIndex];
+    
+    // 从房间中移除玩家
+    room.players.splice(targetPlayerIndex, 1);
+    this.playerRooms.delete(kickedPlayer.socketId);
+    this.unregisterUserSocket(kickedPlayer.userId);
+
+    // 从数据库中删除
+    await db.delete(gameRoomPlayers).where(
+      and(
+        eq(gameRoomPlayers.roomId, roomId),
+        eq(gameRoomPlayers.userId, targetUserId)
+      )
+    );
+
+    console.log(`玩家 ${kickedPlayer.username} 被房主踢出房间: ${roomId}`);
+    return { success: true, message: '玩家已被踢出', room, kickedPlayer };
+  }
+
   // 获取房间信息
   getRoom(roomId: string): ActiveRoom | undefined {
     return this.rooms.get(roomId);

@@ -572,6 +572,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // 踢出玩家事件（仅房主可操作）
+    socket.on('kick_player', async (data: any) => {
+      try {
+        const { targetUserId } = data;
+        
+        if (!targetUserId) {
+          socket.emit('kick_result', {
+            success: false,
+            message: '目标玩家ID不能为空'
+          });
+          return;
+        }
+
+        // 获取当前用户所在的房间
+        const currentRoom = gameRoomManager.getPlayerRoom(socket.id);
+        if (!currentRoom) {
+          socket.emit('kick_result', {
+            success: false,
+            message: '您不在任何房间中'
+          });
+          return;
+        }
+
+        // 踢出玩家
+        const result = await gameRoomManager.kickPlayer(currentRoom.id, socket.userInfo.id, targetUserId);
+        
+        if (result.success && result.room && result.kickedPlayer) {
+          // 向被踢的玩家发送通知
+          const kickedSocketId = result.kickedPlayer.socketId;
+          if (kickedSocketId) {
+            io.to(kickedSocketId).emit('kicked_from_room', {
+              roomId: currentRoom.id,
+              roomName: currentRoom.name,
+              message: `您已被房主踢出房间 "${currentRoom.name}"`
+            });
+            
+            // 让被踢的玩家离开Socket.IO房间
+            io.sockets.sockets.get(kickedSocketId)?.leave(currentRoom.id);
+          }
+
+          // 向房间内其他玩家广播更新
+          io.to(currentRoom.id).emit('room_update', {
+            type: 'player_kicked',
+            roomId: result.room.id,
+            room: result.room,
+            players: result.room.players,
+            status: result.room.status,
+            hostUserId: result.room.hostUserId,
+            playerCount: result.room.players.length,
+            maxPlayers: result.room.maxPlayers,
+            message: `${result.kickedPlayer.username} 已被踢出房间`
+          });
+
+          // 向发起踢人的房主发送成功响应
+          socket.emit('kick_result', {
+            success: true,
+            message: result.message,
+            kickedPlayerName: result.kickedPlayer.username
+          });
+
+          // 向所有连接的客户端广播房间列表更新
+          const allRooms = gameRoomManager.getAllRooms();
+          io.emit('global_rooms_update', {
+            type: 'player_kicked',
+            rooms: allRooms,
+            message: `${result.kickedPlayer.username} 被踢出房间 "${currentRoom.name}"`
+          });
+
+          console.log(`踢人成功: ${result.kickedPlayer.username} 被踢出房间 ${currentRoom.id}`);
+        } else {
+          socket.emit('kick_result', {
+            success: false,
+            message: result.message
+          });
+        }
+      } catch (error: any) {
+        console.error(`踢人失败: ${error.message}`);
+        socket.emit('kick_result', {
+          success: false,
+          message: error.message || '踢出玩家失败，请稍后重试'
+        });
+      }
+    });
+
     // 出牌事件 - 在权威验证确认出牌合法之后也调用advanceTurn
     socket.on('play_cards', async (data: any) => {
       try {

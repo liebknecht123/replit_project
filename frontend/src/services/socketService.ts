@@ -80,6 +80,14 @@ class SocketService {
       this.gameStore.removePlayer(data.playerId)
     })
 
+    // 房间状态更新事件（玩家加入/离开/踢出等）
+    this.socket.on('room_update', (data) => {
+      console.log('房间状态更新:', data)
+      if (data.players) {
+        this.gameStore.updatePlayers(data.players)
+      }
+    })
+
     // 游戏事件
     this.socket.on('game_started', (data) => {
       console.log('游戏开始:', data)
@@ -133,6 +141,28 @@ class SocketService {
     this.socket.on('game_finished', (data) => {
       console.log('游戏结束:', data)
       this.gameStore.updateGameStatus('finished')
+    })
+
+    // 踢人相关事件
+    this.socket.on('kick_result', (data) => {
+      console.log('踢人结果:', data)
+      if (data.success) {
+        console.log(`成功踢出玩家: ${data.kickedPlayerName}`)
+      } else {
+        console.error(`踢人失败: ${data.message}`)
+      }
+    })
+
+    this.socket.on('kicked_from_room', (data) => {
+      console.log('被踢出房间:', data)
+      // 可以在这里添加被踢出的UI提示
+      alert(`${data.message}`)
+      // 返回到游戏大厅（使用路由而不是直接跳转）
+      // 这里应该使用Vue Router来导航，避免破坏SPA状态
+      // 暂时使用alert提示，让用户手动返回大厅
+      setTimeout(() => {
+        window.location.reload()
+      }, 2000)
     })
 
     this.socket.on('reconnect_success', (data) => {
@@ -210,6 +240,13 @@ class SocketService {
   passTurn() {
     if (this.socket) {
       this.socket.emit('pass_turn')
+    }
+  }
+
+  // 踢出玩家
+  kickPlayer(targetUserId: number) {
+    if (this.socket) {
+      this.socket.emit('kick_player', { targetUserId })
     }
   }
 
