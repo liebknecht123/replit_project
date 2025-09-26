@@ -390,17 +390,18 @@ onUnmounted(() => {
 }
 
 .played-cards-area {
-  background: rgba(255, 255, 255, 0.05);
+  background: transparent;
   border-radius: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  padding: 30px;
-  min-width: 400px;
-  min-height: 200px;
+  border: none;
+  padding: 40px;
+  min-width: 600px;
+  min-height: 300px;
+  width: 80%;
+  max-width: 800px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(10px);
 }
 
 .last-played {

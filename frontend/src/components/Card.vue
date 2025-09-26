@@ -71,18 +71,20 @@ const displayRank = computed(() => {
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   user-select: none;
   position: relative;
-  transform: translateX(var(--card-x, 0)) translateY(var(--card-y, 0));
+  transform: translateX(var(--card-x, 0)) translateY(var(--card-y, 0)) rotate(var(--card-rotation, 0deg));
 }
 
 .card:hover {
-  transform: translateX(var(--card-x, 0)) translateY(calc(var(--card-y, 0) - 5px));
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  transform: translateX(var(--card-x, 0)) translateY(calc(var(--card-y, 0px) - 8px)) rotate(var(--card-rotation, 0deg)) scale(1.05);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+  z-index: 100 !important;
 }
 
 .card.selected {
-  transform: translateX(var(--card-x, 0)) translateY(calc(var(--card-y, 0) - 10px));
+  transform: translateX(var(--card-x, 0)) translateY(calc(var(--card-y, 0px) - 15px)) rotate(var(--card-rotation, 0deg)) scale(1.08);
   border-color: #409eff;
-  box-shadow: 0 6px 12px rgba(64, 158, 255, 0.3);
+  box-shadow: 0 8px 16px rgba(64, 158, 255, 0.4);
+  z-index: 101 !important;
 }
 
 .card-content {

@@ -1,24 +1,15 @@
 <template>
   <div class="game-timer" :class="{ 'warning': isWarning, 'danger': isDanger }">
-    <div class="timer-circle">
-      <svg class="timer-svg" viewBox="0 0 100 100">
-        <circle
-          cx="50"
-          cy="50"
-          r="45"
-          class="timer-background"
-        />
-        <circle
-          cx="50"
-          cy="50"
-          r="45"
-          class="timer-progress"
-          :style="{ strokeDashoffset: strokeDashoffset }"
-        />
-      </svg>
-      <div class="timer-content">
-        <div class="time-display">{{ formattedTime }}</div>
-        <div class="timer-label">剩余时间</div>
+    <div class="timer-bar-container">
+      <div class="timer-info">
+        <span class="time-display">{{ formattedTime }}</span>
+        <span class="timer-label">剩余时间</span>
+      </div>
+      <div class="timer-bar-background">
+        <div 
+          class="timer-bar-progress" 
+          :style="{ width: progressPercent + '%' }"
+        ></div>
       </div>
     </div>
   </div>
@@ -37,11 +28,8 @@ const props = withDefaults(defineProps<Props>(), {
   isActive: false
 })
 
-const circumference = 2 * Math.PI * 45 // 半径45的圆周长
-
-const strokeDashoffset = computed(() => {
-  const progress = props.timeLeft / props.totalTime
-  return circumference - (progress * circumference)
+const progressPercent = computed(() => {
+  return (props.timeLeft / props.totalTime) * 100
 })
 
 const formattedTime = computed(() => {
@@ -76,72 +64,61 @@ watch(() => props.timeLeft, (newTime, oldTime) => {
 
 <style scoped>
 .game-timer {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-}
-
-.timer-circle {
-  position: relative;
-  width: 120px;
-  height: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.timer-svg {
   position: absolute;
-  width: 100%;
-  height: 100%;
-  transform: rotate(-90deg);
+  bottom: 140px;
+  left: 50%;
+  transform: translateX(-50%);
+  transition: all 0.3s ease;
+  z-index: 10;
 }
 
-.timer-background {
-  fill: none;
-  stroke: rgba(255, 255, 255, 0.1);
-  stroke-width: 8;
-}
-
-.timer-progress {
-  fill: none;
-  stroke: #4ade80;
-  stroke-width: 8;
-  stroke-linecap: round;
-  stroke-dasharray: 283; /* 2 * π * 45 */
-  transition: stroke-dashoffset 1s linear, stroke 0.3s ease;
-}
-
-.warning .timer-progress {
-  stroke: #fbbf24;
-}
-
-.danger .timer-progress {
-  stroke: #ef4444;
-  animation: pulse-danger 0.5s infinite alternate;
-}
-
-.timer-content {
+.timer-bar-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  text-align: center;
+  gap: 6px;
+}
+
+.timer-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   color: white;
 }
 
 .time-display {
-  font-size: 24px;
+  font-size: 14px;
   font-weight: bold;
   font-family: 'Courier New', monospace;
-  line-height: 1;
 }
 
 .timer-label {
-  font-size: 12px;
+  font-size: 10px;
   opacity: 0.8;
-  margin-top: 4px;
+}
+
+.timer-bar-background {
+  width: 200px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.timer-bar-progress {
+  height: 100%;
+  background: #4ade80;
+  transition: width 1s linear, background-color 0.3s ease;
+  border-radius: 3px;
+}
+
+.warning .timer-bar-progress {
+  background: #fbbf24;
+}
+
+.danger .timer-bar-progress {
+  background: #ef4444;
+  animation: pulse-danger 0.5s infinite alternate;
 }
 
 .warning .time-display {
@@ -155,10 +132,10 @@ watch(() => props.timeLeft, (newTime, oldTime) => {
 
 @keyframes pulse-danger {
   from {
-    stroke-width: 8;
+    box-shadow: 0 0 5px rgba(239, 68, 68, 0.5);
   }
   to {
-    stroke-width: 12;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
   }
 }
 
@@ -167,22 +144,7 @@ watch(() => props.timeLeft, (newTime, oldTime) => {
     transform: scale(1);
   }
   to {
-    transform: scale(1.05);
-  }
-}
-
-@media (max-width: 768px) {
-  .timer-circle {
-    width: 80px;
-    height: 80px;
-  }
-  
-  .time-display {
-    font-size: 18px;
-  }
-  
-  .timer-label {
-    font-size: 10px;
+    transform: scale(1.1);
   }
 }
 </style>

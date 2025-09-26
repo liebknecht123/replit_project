@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a comprehensive monorepo project for the "掼蛋" (Guan Dan) card game featuring a unified Web-based frontend architecture. The project includes a React-based web application, an admin dashboard, and a Node.js Express API backend with real-time WebSocket functionality. The project has completely migrated to Vue.js technology stack for the unified frontend, abandoning the previous Godot client approach.
+This is a comprehensive monorepo project for the "掼蛋" (Guan Dan) card game featuring a unified Web-based frontend architecture. The project includes a React 18-based web application with TypeScript, Node.js Express API backend, and real-time WebSocket functionality. The project features a completely redesigned game interface with professional-grade visual effects including horizontal timer bars, transparent central play areas, and advanced card fan layouts with 80% visibility guarantee.
 
 ## User Preferences
 
@@ -12,13 +12,14 @@ Language preference: Chinese (中文) - Use Chinese when building and explaining
 ## System Architecture
 
 ### Frontend Architecture  
-- **Unified Web Frontend**: Vue.js-based architecture for comprehensive game client
-- **Current Implementation**: React 18 with TypeScript, built using Vite for development and bundling  
+- **Unified Web Frontend**: React 18 with TypeScript architecture for comprehensive game client
+- **Recent Major Overhaul**: Professional-grade visual redesign completed with horizontal timer system, transparent central areas, and advanced card layouts
 - **UI Framework**: Tailwind CSS with shadcn/ui component library for consistent design
 - **State Management**: TanStack React Query for server state management and API caching
 - **Routing**: Wouter for lightweight client-side routing
 - **Forms**: React Hook Form with Zod validation for type-safe form handling
-- **Game Interface**: Real-time game lobby with timer system and card game functionality
+- **Game Interface**: Real-time game lobby with professional timer system and advanced card game functionality
+- **Card Layout System**: Fan-style hand layout with guaranteed 80% card visibility and smooth hover/selection interactions
 
 ### Backend Architecture
 - **API Server**: Node.js Express server with TypeScript running on port 5000
@@ -46,7 +47,7 @@ Language preference: Chinese (中文) - Use Chinese when building and explaining
 - **Development**: Concurrent development server running Express API with Vite frontend
 - **Production Build**: Separate build processes for client (Vite) and server (esbuild)
 - **Asset Management**: Shared assets directory with proper aliasing
-- **Architecture Decision**: Completely migrated to unified Web-based frontend (Vue.js), abandoning Godot client
+- **Architecture Decision**: Unified React-based web frontend with professional game interface design
 
 ### Service Management  
 - **Unified Architecture**: Single TypeScript server (port 5000) serving both API and WebSocket

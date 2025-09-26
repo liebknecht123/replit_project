@@ -96,70 +96,42 @@ const groupedAndSortedCards = computed(() => {
 })
 
 const getCardStyle = (index: number) => {
-  const sortedCards = groupedAndSortedCards.value
-  const currentCard = props.cards[index]
-  
-  const totalCards = sortedCards.length
-  const maxWidth = 900
+  const totalCards = props.cards.length
+  const maxWidth = 1200 // 增加最大宽度以适应更多卡牌
   const cardWidth = 45
-  const cardSpacing = 50
-  const cardHeight = 63 // CSS定义的卡牌高度
-  const overlapRatio = 0.2 // 重叠20%，露出80%
-  const stackOffset = cardHeight * overlapRatio // 约12.6px的重叠
   
-  // 计算是否需要缩小间距
-  const totalNeededWidth = (totalCards - 1) * cardSpacing + cardWidth
-  let spacing = cardSpacing
+  // 计算扇形排列的参数 - 严格确保80%可见度
+  // 80%可见度意味着间距必须至少是卡牌宽度的80%
+  const minSpacing = cardWidth * 0.8 // 最小间距确保80%可见度
+  const idealSpacing = cardWidth * 0.85 // 理想间距为85%，稍微更宽松
   
-  if (totalNeededWidth > maxWidth) {
-    spacing = Math.max(cardWidth + 5, (maxWidth - cardWidth) / (totalCards - 1))
-  }
+  // 计算可用宽度下的理论间距
+  const availableSpacing = totalCards > 1 ? (maxWidth - cardWidth) / (totalCards - 1) : cardWidth
   
-  // 重新按点数分组来计算位置
-  const groups = new Map<string | number, CardData[]>()
-  sortedCards.forEach(card => {
-    const key = card.rank
-    if (!groups.has(key)) {
-      groups.set(key, [])
-    }
-    groups.get(key)!.push(card)
-  })
+  // 确保间距绝不低于80%，优先选择理想间距
+  const cardSpacing = Math.max(minSpacing, Math.min(idealSpacing, availableSpacing))
   
-  const groupEntries = Array.from(groups.entries())
-  let groupStartIndex = 0
+  // 计算整体手牌宽度
+  const totalHandWidth = totalCards === 1 ? cardWidth : (totalCards - 1) * cardSpacing + cardWidth
+  const startOffset = -totalHandWidth / 2 + cardWidth / 2
   
-  for (let i = 0; i < groupEntries.length; i++) {
-    const [rank, cards] = groupEntries[i]
-    const cardIndexInGroup = cards.findIndex(card => 
-      card.suit === currentCard.suit && card.rank === currentCard.rank
-    )
-    
-    if (cardIndexInGroup >= 0) {
-      const cardX = groupStartIndex * spacing
-      
-      // 计算垂直偏移：第一张卡保持y=0，后续卡向上堆叠
-      const cardY = cardIndexInGroup === 0 ? 0 : -stackOffset * cardIndexInGroup
-      
-      // 整体居中
-      const totalHandWidth = (groupEntries.length - 1) * spacing + cardWidth
-      const startOffset = -totalHandWidth / 2 + cardWidth / 2
-      
-      // z-index：同组内后续卡牌在上方
-      const zIndex = groupStartIndex * 100 + cardIndexInGroup + 1
-      
-      return {
-        '--card-x': `${startOffset + cardX}px`,
-        '--card-y': `${cardY}px`,
-        zIndex
-      }
-    }
-    groupStartIndex++
-  }
+  // 计算当前卡牌的水平位置
+  const cardX = startOffset + index * cardSpacing
   
-  // 默认返回
+  // 计算扇形旋转角度（从中心向两边扩散）
+  const maxRotation = 12 // 最大旋转角度
+  const centerIndex = (totalCards - 1) / 2
+  const distanceFromCenter = index - centerIndex
+  const rotationAngle = totalCards > 1 ? 
+    (distanceFromCenter / Math.max(centerIndex, 1)) * maxRotation : 0
+  
+  // 根据旋转角度计算轻微的垂直偏移，形成弧形效果
+  const verticalOffset = Math.abs(rotationAngle) * 1.2
+  
   return {
-    '--card-x': '0px',
-    '--card-y': '0px',
+    '--card-x': `${cardX}px`,
+    '--card-y': `${verticalOffset}px`,
+    '--card-rotation': `${rotationAngle}deg`,
     zIndex: index + 1
   }
 }
@@ -195,12 +167,12 @@ defineExpose({
 .hand-container {
   display: flex;
   position: relative;
-  height: 120px; /* 适中的高度，足够容纳少量堆叠 */
+  height: 120px;
   align-items: flex-end;
   justify-content: center;
-  width: 100%; /* 使用全宽度 */
-  min-width: 400px; /* 最小宽度 */
-  max-width: 1000px; /* 最大宽度 */
+  width: 100%;
+  min-width: 600px;
+  max-width: 1400px;
 }
 
 .hand-card {
