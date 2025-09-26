@@ -1,5 +1,6 @@
 <template>
-  <div class="game-table">
+  <div class="game-container">
+    <div ref="gameTableRef" class="game-table">
     <!-- 顶部玩家 -->
     <div class="top-area">
       <PlayerAvatar
@@ -109,6 +110,7 @@
         </div>
       </div>
     </div>
+    </div>
   </div>
 </template>
 
@@ -170,6 +172,47 @@ function generateMockHand(): CardData[] {
     }
     return Number(a.rank) - Number(b.rank)
   })
+}
+
+// 全局缩放逻辑
+const gameTableRef = ref<HTMLElement>()
+const scale = ref(1)
+
+const calculateScale = () => {
+  if (!gameTableRef.value) return
+  
+  const gameTable = gameTableRef.value
+  const container = gameTable.parentElement
+  if (!container) return
+  
+  // 游戏桌面的设计尺寸（基于1920x1080设计）
+  const designWidth = 1920
+  const designHeight = 1080
+  
+  // 获取实际可用空间
+  const availableWidth = container.clientWidth
+  const availableHeight = container.clientHeight
+  
+  // 计算缩放比例
+  const scaleX = availableWidth / designWidth
+  const scaleY = availableHeight / designHeight
+  
+  // 使用较小的缩放比例确保内容完全显示
+  const newScale = Math.min(scaleX, scaleY, 1) // 最大不超过1（不放大）
+  
+  scale.value = newScale
+  
+  // 计算缩放后的实际尺寸
+  const scaledWidth = designWidth * newScale
+  const scaledHeight = designHeight * newScale
+  
+  // 计算居中偏移量
+  const offsetX = (availableWidth - scaledWidth) / 2
+  const offsetY = (availableHeight - scaledHeight) / 2
+  
+  // 应用缩放和偏移
+  gameTable.style.transform = `scale(${newScale}) translate(${offsetX / newScale}px, ${offsetY / newScale}px)`
+  gameTable.style.transformOrigin = 'top left'
 }
 
 // 事件处理
@@ -234,6 +277,14 @@ onMounted(() => {
   // 启动模拟倒计时器
   startMockTimer()
   
+  // 初始化缩放 - 需要延迟到DOM渲染完成
+  setTimeout(() => {
+    calculateScale()
+  }, 100)
+  
+  // 监听窗口大小变化
+  window.addEventListener('resize', calculateScale)
+  
   // 如果有认证token，尝试连接WebSocket
   const token = localStorage.getItem('auth_token')
   if (token) {
@@ -277,18 +328,32 @@ onUnmounted(() => {
     clearInterval(timerInterval)
     timerInterval = null
   }
+  
+  // 清理resize监听器
+  window.removeEventListener('resize', calculateScale)
 })
 </script>
 
 <style scoped>
-.game-table {
+.game-container {
   width: 100vw;
   height: 100vh;
+  position: relative;
+  overflow: hidden;
+  background: #000;
+}
+
+.game-table {
+  width: 1920px;
+  height: 1080px;
   background: radial-gradient(ellipse at center, #065f46 0%, #064e3b 70%, #022c22 100%);
   display: flex;
   flex-direction: column;
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
   overflow: hidden;
+  transition: transform 0.3s ease;
 }
 
 .top-area {
