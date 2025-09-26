@@ -78,7 +78,7 @@ withDefaults(defineProps<Props>(), {
 }
 
 .card-count {
-  font-size: 14px;
+  font-size: 21px;
   opacity: 0.8;
 }
 
