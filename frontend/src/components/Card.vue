@@ -96,13 +96,13 @@ const displayRank = computed(() => {
 }
 
 .rank {
-  font-size: 21px;
+  font-size: 31.5px;
   line-height: 1;
   margin-bottom: 3px;
 }
 
 .suit {
-  font-size: 27px;
+  font-size: 40.5px;
   line-height: 1;
 }
 
@@ -120,6 +120,6 @@ const displayRank = computed(() => {
 }
 
 .card[data-suit="joker"] .suit {
-  font-size: 24px;
+  font-size: 36px;
 }
 </style>
