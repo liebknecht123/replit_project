@@ -335,7 +335,7 @@ onUnmounted(() => {
   height: 100vh;
   position: relative;
   overflow: hidden;
-  background: #000;
+  background: radial-gradient(ellipse at center, #065f46 0%, #064e3b 70%, #022c22 100%);
 }
 
 .game-table {
