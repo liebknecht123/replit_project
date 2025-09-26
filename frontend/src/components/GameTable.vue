@@ -62,11 +62,14 @@
             :can-play="canPlay"
             :can-pass="canPass"
             :can-auto-sort="true"
+            :can-restore="canRestore"
+            :show-restore="showRestore"
             :is-my-turn="isMyTurn"
             @play="handlePlay"
             @pass="handlePass"
             @hint="handleHint"
             @auto-sort="handleAutoSort"
+            @restore="handleRestore"
           />
         </div>
       </div>
@@ -131,6 +134,10 @@ const gameStore = useGameStore()
 const playerHandRef = ref()
 const selectedCards = ref<CardData[]>([])
 
+// 原始牌型状态管理
+const originalHand = ref<CardData[]>([])
+const hasSorted = ref(false)
+
 // 计算属性 - 从store获取数据
 const topPlayer = computed(() => gameStore.topPlayer)
 const leftPlayer = computed(() => gameStore.leftPlayer)
@@ -146,6 +153,10 @@ const lastPlayerName = computed(() => {
   return player?.name || ''
 })
 const lastPlayType = computed(() => gameStore.lastPlay?.playType || '')
+
+// 恢复功能相关计算属性
+const canRestore = computed(() => hasSorted.value && originalHand.value.length > 0)
+const showRestore = computed(() => hasSorted.value)
 
 // 生成模拟手牌数据（用于演示）
 function generateMockHand(): CardData[] {
@@ -243,6 +254,11 @@ const handleHint = () => {
 
 const handleAutoSort = () => {
   console.log('智能整理')
+  
+  // 保存原始牌型（仅在第一次整理时）
+  if (!hasSorted.value) {
+    originalHand.value = [...gameStore.myHand]
+  }
   
   // 第一步：数据预处理
   const cards = [...gameStore.myHand]
@@ -548,7 +564,17 @@ const handleAutoSort = () => {
   
   // 第三步：更新状态
   gameStore.updateMyHand(sortedHand)
+  hasSorted.value = true
   console.log('智能整理完成！手牌已按专业级牌型优先级重新排列')
+}
+
+const handleRestore = () => {
+  console.log('恢复牌型')
+  if (originalHand.value.length > 0) {
+    gameStore.updateMyHand([...originalHand.value])
+    hasSorted.value = false
+    console.log('手牌已恢复到原始顺序')
+  }
 }
 
 

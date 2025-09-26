@@ -44,6 +44,18 @@
         <el-icon><MagicStick /></el-icon>
         智能整理
       </el-button>
+      
+      <el-button
+        type="primary"
+        size="large"
+        @click="handleRestore"
+        :disabled="!canRestore"
+        class="action-btn restore-btn"
+        v-if="showRestore"
+      >
+        <el-icon><RefreshLeft /></el-icon>
+        恢复牌型
+      </el-button>
     </div>
   </div>
 </template>
@@ -53,7 +65,8 @@ import {
   CaretRight, 
   Close, 
   QuestionFilled, 
-  MagicStick
+  MagicStick,
+  RefreshLeft
 } from '@element-plus/icons-vue'
 
 interface Props {
@@ -61,6 +74,8 @@ interface Props {
   canPass?: boolean
   canHint?: boolean
   canAutoSort?: boolean
+  canRestore?: boolean
+  showRestore?: boolean
   isMyTurn?: boolean
 }
 
@@ -69,6 +84,8 @@ const props = withDefaults(defineProps<Props>(), {
   canPass: false,
   canHint: true,
   canAutoSort: true,
+  canRestore: false,
+  showRestore: false,
   isMyTurn: false
 })
 
@@ -77,6 +94,7 @@ const emit = defineEmits<{
   pass: []
   hint: []
   autoSort: []
+  restore: []
 }>()
 
 const handlePlay = () => {
@@ -100,6 +118,12 @@ const handleHint = () => {
 const handleAutoSort = () => {
   if (props.canAutoSort) {
     emit('autoSort')
+  }
+}
+
+const handleRestore = () => {
+  if (props.canRestore) {
+    emit('restore')
   }
 }
 </script>
@@ -175,6 +199,17 @@ const handleAutoSort = () => {
   background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
   border: none;
   color: white;
+}
+
+.restore-btn {
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+  border: none;
+  color: white;
+}
+
+.restore-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(8, 145, 178, 0.4);
 }
 
 .surrender-btn {
