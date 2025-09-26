@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, jsonb, serial } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, jsonb, serial, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -52,7 +52,10 @@ export const gameRoomPlayers = pgTable("game_room_players", {
   userId: serial("user_id").references(() => users.id).notNull(),
   isHost: text("is_host").notNull().default("false"),
   joinedAt: timestamp("joined_at").defaultNow(),
-});
+}, (table) => ({
+  // 添加唯一约束：同一用户不能在同一房间中重复
+  uniqueUserPerRoom: unique().on(table.roomId, table.userId),
+}));
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,

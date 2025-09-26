@@ -164,7 +164,17 @@ export class GameRoomManager {
     // 检查用户是否已在房间中
     const existingPlayer = room.players.find(p => p.userId === user.id);
     if (existingPlayer) {
-      return { success: false, message: '您已在该房间中' };
+      // 如果是重连情况，更新socket信息而不是拒绝
+      if (!existingPlayer.isConnected) {
+        existingPlayer.isConnected = true;
+        existingPlayer.socketId = socketId;
+        this.playerRooms.set(socketId, roomId);
+        this.registerUserSocket(user.id, socketId);
+        console.log(`玩家 ${user.username} 重连到房间: ${roomId}`);
+        return { success: true, message: '重连成功', room: room };
+      } else {
+        return { success: false, message: '您已在该房间中' };
+      }
     }
 
     // 添加到数据库
@@ -339,6 +349,11 @@ export class GameRoomManager {
     playerNames: string[];
     createdAt: Date;
   }> {
+    // 在返回房间列表前，先清理所有房间的重复用户
+    for (const roomId of Array.from(this.rooms.keys())) {
+      this.cleanupDuplicatePlayersInRoom(roomId);
+    }
+
     return Array.from(this.rooms.values()).map(room => ({
       id: room.id,
       name: room.name,
@@ -524,6 +539,9 @@ export class GameRoomManager {
     // 遍历所有房间查找断线的玩家
     const roomsArray = Array.from(this.rooms.entries());
     for (const [roomId, room] of roomsArray) {
+      // 先清理同一用户的重复条目
+      this.cleanupDuplicatePlayersInRoom(roomId);
+      
       const playerIndex = room.players.findIndex((p: ConnectedPlayer) => p.userId === userId && !p.isConnected);
       
       if (playerIndex !== -1) {
@@ -543,6 +561,47 @@ export class GameRoomManager {
     }
     
     return { room: null, player: null };
+  }
+
+  // 清理房间中的重复玩家（保留最新连接，同步映射表）
+  private cleanupDuplicatePlayersInRoom(roomId: string): void {
+    const room = this.rooms.get(roomId);
+    if (!room) return;
+
+    const userIdToLatestPlayer = new Map<number, ConnectedPlayer>();
+    const oldSocketsToRemove: string[] = [];
+
+    // 找到每个用户的最新连接（保留最后一个）
+    for (const player of room.players) {
+      const existingPlayer = userIdToLatestPlayer.get(player.userId);
+      if (existingPlayer) {
+        // 发现重复用户，保留较新的连接
+        if (player.joinedAt > existingPlayer.joinedAt) {
+          // 当前玩家更新，移除旧的
+          oldSocketsToRemove.push(existingPlayer.socketId);
+          userIdToLatestPlayer.set(player.userId, player);
+          console.log(`🧹 清理重复玩家: ${existingPlayer.username} (旧连接 ${existingPlayer.socketId})`);
+        } else {
+          // 旧玩家更新，移除当前的
+          oldSocketsToRemove.push(player.socketId);
+          console.log(`🧹 清理重复玩家: ${player.username} (旧连接 ${player.socketId})`);
+        }
+      } else {
+        userIdToLatestPlayer.set(player.userId, player);
+      }
+    }
+
+    if (oldSocketsToRemove.length > 0) {
+      // 更新玩家列表为去重后的
+      room.players = Array.from(userIdToLatestPlayer.values());
+      
+      // 清理映射表中的旧socket连接
+      for (const oldSocketId of oldSocketsToRemove) {
+        this.playerRooms.delete(oldSocketId);
+      }
+      
+      console.log(`✅ 房间 ${roomId} 清理完成，玩家数量: ${room.players.length}，清理了 ${oldSocketsToRemove.length} 个重复连接`);
+    }
   }
 
   // 添加游戏日志
