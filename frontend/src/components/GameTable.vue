@@ -164,9 +164,9 @@ function generateMockHand(): CardData[] {
   }
   
   return cards.sort((a, b) => {
-    // 简单排序：先按花色，再按点数
+    // 简单排序：先按花色，再按点数 - 方块、梅花、红桃、黑桃
     if (a.suit !== b.suit) {
-      const suitOrder = { hearts: 1, diamonds: 2, clubs: 3, spades: 4, joker: 5 }
+      const suitOrder = { diamonds: 1, clubs: 2, hearts: 3, spades: 4, joker: 5 }
       return suitOrder[a.suit] - suitOrder[b.suit]
     }
     return Number(a.rank) - Number(b.rank)
