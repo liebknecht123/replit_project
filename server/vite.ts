@@ -41,8 +41,15 @@ export async function setupVite(app: Express, server: Server) {
   });
 
   app.use(vite.middlewares);
+  
+  // 只为非API路径提供前端页面
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
+    
+    // 跳过API路径，让它们由registerRoutes处理
+    if (url.startsWith('/api/')) {
+      return next();
+    }
 
     try {
       const clientTemplate = path.resolve(
