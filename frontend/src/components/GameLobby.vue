@@ -24,6 +24,25 @@
         </div>
       </div>
 
+      <!-- 当前房间状态 -->
+      <div v-if="currentRoom" class="current-room-banner">
+        <div class="banner-content">
+          <div class="room-icon">
+            <el-icon><House /></el-icon>
+          </div>
+          <div class="room-details">
+            <h4>您当前在房间：{{ currentRoom.name }}</h4>
+            <p>房主：{{ currentRoom.host }} | 玩家：{{ currentRoom.playerCount }}/{{ currentRoom.maxPlayers }}</p>
+          </div>
+          <div class="room-actions">
+            <el-button type="primary" @click="returnToRoom" data-testid="button-return-to-room">
+              <el-icon><House /></el-icon>
+              返回房间
+            </el-button>
+          </div>
+        </div>
+      </div>
+
       <!-- 游戏大厅主体 -->
       <div class="lobby-main">
         <!-- 左侧：房间列表 -->
@@ -176,6 +195,9 @@ const userInfo = ref<UserInfo>({
 const rooms = ref<RoomInfo[]>([])
 const roomsLoading = ref(false)
 
+// 当前房间状态  
+const currentRoom = ref(null)
+
 // 创建房间表单
 const createForm = reactive({
   name: '',
@@ -230,6 +252,66 @@ const fetchRooms = async () => {
 // 刷新房间列表
 const refreshRooms = () => {
   fetchRooms()
+}
+
+// 检查用户当前房间
+const checkCurrentRoom = async () => {
+  try {
+    const response = await fetch('/api/current-room', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+      }
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      if (data.success && data.room) {
+        currentRoom.value = {
+          id: data.room.id,
+          name: data.room.name,
+          host: data.room.host,
+          playerCount: data.room.playerCount,
+          maxPlayers: data.room.maxPlayers
+        }
+      } else {
+        currentRoom.value = null
+      }
+    } else {
+      currentRoom.value = null
+    }
+  } catch (error) {
+    console.error('检查当前房间失败:', error)
+    currentRoom.value = null
+  }
+}
+
+// 返回房间
+const returnToRoom = async () => {
+  if (!currentRoom.value) return
+  
+  try {
+    // 首先调用后端重连接口
+    const response = await fetch('/api/reconnect-room', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+      },
+      body: JSON.stringify({ roomId: currentRoom.value.id })
+    })
+    
+    const data = await response.json()
+    if (data.success) {
+      // 重连成功，导航到游戏房间（使用正确的路由格式）
+      router.push(`/game?roomId=${currentRoom.value.id}`)
+      ElMessage.success('成功返回房间')
+    } else {
+      ElMessage.error(data.message || '返回房间失败')
+    }
+  } catch (error) {
+    console.error('返回房间失败:', error)
+    ElMessage.error('返回房间失败，请稍后重试')
+  }
 }
 
 // 加入房间
@@ -332,6 +414,7 @@ const handleLogout = () => {
 onMounted(async () => {
   getUserInfo()
   fetchRooms()
+  checkCurrentRoom()
   
   // 监听全局房间更新
   try {
@@ -416,6 +499,56 @@ onMounted(async () => {
   color: rgba(255, 255, 255, 0.7);
   margin: 0;
   font-size: 14px;
+}
+
+/* 当前房间横幅样式 */
+.current-room-banner {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  border-radius: 16px;
+  margin-bottom: 20px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(59, 130, 246, 0.3);
+}
+
+.banner-content {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.room-icon {
+  width: 50px;
+  height: 50px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: white;
+}
+
+.room-details {
+  flex: 1;
+}
+
+.room-details h4 {
+  color: white;
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.room-details p {
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+  font-size: 14px;
+}
+
+.room-actions {
+  flex-shrink: 0;
 }
 
 .lobby-main {

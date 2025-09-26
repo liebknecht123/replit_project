@@ -41,6 +41,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 获取当前用户房间
+  app.get('/api/current-room', async (req, res) => {
+    try {
+      const token = req.headers.authorization?.replace('Bearer ', '');
+      if (!token) {
+        return res.status(401).json({ success: false, message: '未登录' });
+      }
+
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      const room = gameRoomManager.getUserRoom(decoded.userId);
+      
+      if (room) {
+        const hostPlayer = room.players.find(p => p.isHost);
+        res.json({
+          success: true,
+          room: {
+            id: room.id,
+            name: room.name,
+            host: hostPlayer?.username || '未知',
+            playerCount: room.players.length,
+            maxPlayers: room.maxPlayers
+          }
+        });
+      } else {
+        res.json({
+          success: true,
+          room: null
+        });
+      }
+    } catch (error) {
+      console.error('获取当前房间失败:', error);
+      res.status(500).json({ success: false, message: '服务器错误' });
+    }
+  });
+
+  // 重新连接房间
+  app.post('/api/reconnect-room', async (req, res) => {
+    try {
+      const token = req.headers.authorization?.replace('Bearer ', '');
+      if (!token) {
+        return res.status(401).json({ success: false, message: '未登录' });
+      }
+
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      const { roomId } = req.body;
+      
+      if (!roomId) {
+        return res.status(400).json({ success: false, message: '房间ID不能为空' });
+      }
+
+      // 验证用户确实在这个房间中
+      const room = gameRoomManager.getUserRoom(decoded.userId);
+      if (!room || room.id !== roomId) {
+        return res.json({
+          success: false,
+          message: '没有可重连的房间或房间ID不匹配'
+        });
+      }
+
+      // 注意：HTTP路由无法提供真实的socket连接，所以这里先预标记用户为可重连状态
+      // 实际的socket重连会在用户导航到游戏页面时通过WebSocket事件完成
+      console.log(`🔄 用户 ${decoded.userId} 请求重连房间 ${roomId}`);
+      
+      // 验证重连条件：用户确实在房间中且处于离线状态
+      const player = room.players.find(p => p.userId === decoded.userId);
+      if (!player) {
+        return res.json({
+          success: false,
+          message: '用户不在该房间中'
+        });
+      }
+      
+      if (player.isConnected) {
+        return res.json({
+          success: false,
+          message: '用户已在房间中，无需重连'
+        });
+      }
+      
+      // 标记为准备重连状态（实际socket连接在WebSocket握手时建立）
+      console.log(`✅ 用户 ${decoded.userId} 重连验证通过，房间：${roomId}`);
+      
+      // HTTP API只做验证，实际重连通过WebSocket完成
+      res.json({
+        success: true,
+        message: '重连验证成功，请导航到游戏页面',
+        room: {
+          id: room.id,
+          name: room.name
+        }
+      });
+    } catch (error) {
+      console.error('重连房间失败:', error);
+      res.status(500).json({ success: false, message: '服务器错误' });
+    }
+  });
+
   // 基础认证路由示例
   app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;

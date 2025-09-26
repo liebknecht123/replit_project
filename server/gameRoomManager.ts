@@ -285,7 +285,33 @@ export class GameRoomManager {
     }
   }
 
-  // 离开房间
+  // 暂离房间（保留位置，不删除数据库记录）
+  async temporaryLeaveRoom(socketId: string): Promise<ActiveRoom | null> {
+    const roomId = this.playerRooms.get(socketId);
+    if (!roomId) {
+      return null;
+    }
+
+    const room = this.rooms.get(roomId);
+    if (!room) {
+      this.playerRooms.delete(socketId);
+      return null;
+    }
+
+    // 找到玩家并标记为暂离状态
+    const player = room.players.find(p => p.socketId === socketId);
+    if (player) {
+      player.socketId = ''; // 清空socketId表示暂离
+      player.isConnected = false;
+      this.playerRooms.delete(socketId);
+      this.unregisterUserSocket(player.userId);
+      console.log(`玩家 ${player.username} 暂离房间: ${roomId}`);
+    }
+
+    return room;
+  }
+
+  // 离开房间（彻底离开，删除数据库记录）
   async leaveRoom(socketId: string): Promise<ActiveRoom | null> {
     const roomId = this.playerRooms.get(socketId);
     if (!roomId) {
@@ -408,6 +434,40 @@ export class GameRoomManager {
   getPlayerRoom(socketId: string): ActiveRoom | null {
     const roomId = this.playerRooms.get(socketId);
     return roomId ? this.rooms.get(roomId) || null : null;
+  }
+
+  // 通过用户ID查找房间（包括暂离状态）
+  getUserRoom(userId: number): ActiveRoom | null {
+    for (const room of this.rooms.values()) {
+      const player = room.players.find(p => p.userId === userId);
+      if (player) {
+        return room;
+      }
+    }
+    return null;
+  }
+
+  // 重新连接到房间
+  async reconnectToRoom(socketId: string, userId: number): Promise<{ success: boolean; room?: ActiveRoom; message: string }> {
+    // 查找用户是否在某个房间中（暂离状态）
+    const room = this.getUserRoom(userId);
+    if (!room) {
+      return { success: false, message: '您没有可重连的房间' };
+    }
+
+    const player = room.players.find(p => p.userId === userId);
+    if (!player) {
+      return { success: false, message: '在房间中找不到您的信息' };
+    }
+
+    // 重新连接
+    player.socketId = socketId;
+    player.isConnected = true;
+    this.playerRooms.set(socketId, room.id);
+    this.registerUserSocket(userId, socketId);
+
+    console.log(`玩家 ${player.username} 重新连接到房间: ${room.id}`);
+    return { success: true, room, message: '重新连接成功' };
   }
 
   // 获取所有房间列表
