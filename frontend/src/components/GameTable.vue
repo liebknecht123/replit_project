@@ -243,7 +243,312 @@ const handleHint = () => {
 
 const handleAutoSort = () => {
   console.log('智能整理')
-  // 这里将实现智能整理牌型的逻辑
+  
+  // 第一步：数据预处理
+  const cards = [...gameStore.myHand]
+  const usedCards = new Set<number>() // 记录已使用的牌的索引
+  const sortedHand: CardData[] = []
+  
+  // 定义牌值映射
+  const getCardValue = (card: CardData): number => {
+    if (card.suit === 'joker') {
+      return card.rank === 'small' ? 16 : 17 // 小王16, 大王17
+    }
+    if (card.rank === 1 || card.rank === 14) return 14 // A = 14
+    return typeof card.rank === 'number' ? card.rank : parseInt(card.rank)
+  }
+  
+  // 按数量分组：得到按点数分类的牌组映射
+  const getAvailableCards = () => {
+    return cards.filter((_, index) => !usedCards.has(index))
+  }
+  
+  const groupByValue = (availableCards: CardData[]) => {
+    const groups = new Map<number, CardData[]>()
+    availableCards.forEach(card => {
+      const value = getCardValue(card)
+      if (!groups.has(value)) {
+        groups.set(value, [])
+      }
+      groups.get(value)!.push(card)
+    })
+    return groups
+  }
+  
+  // 优先级 1: 提取天王炸 (Joker Bomb)
+  const extractJokerBomb = () => {
+    const availableCards = getAvailableCards()
+    const bigJokers = availableCards.filter(card => card.suit === 'joker' && card.rank !== 'small')
+    const smallJokers = availableCards.filter(card => card.suit === 'joker' && card.rank === 'small')
+    
+    if (bigJokers.length >= 2 && smallJokers.length >= 2) {
+      // 找到天王炸
+      const jokerBomb = [...bigJokers.slice(0, 2), ...smallJokers.slice(0, 2)]
+      jokerBomb.forEach(card => {
+        const index = cards.findIndex((c, i) => !usedCards.has(i) && c.suit === card.suit && c.rank === card.rank)
+        if (index !== -1) usedCards.add(index)
+      })
+      sortedHand.push(...jokerBomb)
+      console.log('找到天王炸!')
+    }
+  }
+  
+  // 优先级 2: 提取同花顺 (Straight Flushes)
+  const extractStraightFlushes = () => {
+    const availableCards = getAvailableCards()
+    const suitGroups = new Map<string, CardData[]>()
+    
+    availableCards.forEach(card => {
+      if (card.suit !== 'joker') {
+        if (!suitGroups.has(card.suit)) {
+          suitGroups.set(card.suit, [])
+        }
+        suitGroups.get(card.suit)!.push(card)
+      }
+    })
+    
+    suitGroups.forEach(suitCards => {
+      suitCards.sort((a, b) => getCardValue(b) - getCardValue(a))
+      
+      // 寻找连续序列
+      let currentSequence: CardData[] = []
+      let lastValue = -1
+      
+      suitCards.forEach(card => {
+        const value = getCardValue(card)
+        if (lastValue === -1 || lastValue - value === 1) {
+          currentSequence.push(card)
+          lastValue = value
+        } else {
+          // 检查当前序列是否>=5张
+          if (currentSequence.length >= 5) {
+            currentSequence.forEach(c => {
+              const index = cards.findIndex((card, i) => !usedCards.has(i) && card.suit === c.suit && card.rank === c.rank)
+              if (index !== -1) usedCards.add(index)
+            })
+            sortedHand.push(...currentSequence)
+            console.log(`找到同花顺: ${currentSequence.length}张`)
+          }
+          currentSequence = [card]
+          lastValue = value
+        }
+      })
+      
+      // 检查最后一个序列
+      if (currentSequence.length >= 5) {
+        currentSequence.forEach(c => {
+          const index = cards.findIndex((card, i) => !usedCards.has(i) && card.suit === c.suit && card.rank === c.rank)
+          if (index !== -1) usedCards.add(index)
+        })
+        sortedHand.push(...currentSequence)
+        console.log(`找到同花顺: ${currentSequence.length}张`)
+      }
+    })
+  }
+  
+  // 优先级 3: 提取炸弹 (Regular Bombs)
+  const extractBombs = () => {
+    const availableCards = getAvailableCards()
+    const groups = groupByValue(availableCards)
+    
+    Array.from(groups.entries())
+      .filter(([_, cards]) => cards.length >= 4)
+      .sort(([a], [b]) => b - a) // 按牌值从大到小
+      .forEach(([value, bombCards]) => {
+        bombCards.forEach(card => {
+          const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === value)
+          if (index !== -1) usedCards.add(index)
+        })
+        sortedHand.push(...bombCards)
+        console.log(`找到炸弹: ${bombCards.length}张${value}`)
+      })
+  }
+  
+  // 优先级 4: 提取钢板 (Consecutive Triplets)
+  const extractConsecutiveTriplets = () => {
+    const availableCards = getAvailableCards()
+    const groups = groupByValue(availableCards)
+    
+    const triplets = Array.from(groups.entries())
+      .filter(([_, cards]) => cards.length >= 3)
+      .map(([value, cards]) => ({ value, cards: cards.slice(0, 3) }))
+      .sort((a, b) => b.value - a.value)
+    
+    // 寻找连续的三张
+    let currentSequence: { value: number, cards: CardData[] }[] = []
+    let lastValue = -1
+    
+    triplets.forEach(triplet => {
+      if (lastValue === -1 || lastValue - triplet.value === 1) {
+        currentSequence.push(triplet)
+        lastValue = triplet.value
+      } else {
+        // 处理当前序列
+        if (currentSequence.length >= 2) {
+          currentSequence.forEach(t => {
+            t.cards.forEach(card => {
+              const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === t.value)
+              if (index !== -1) usedCards.add(index)
+            })
+            sortedHand.push(...t.cards)
+          })
+          console.log(`找到钢板: ${currentSequence.length}组连续三张`)
+        }
+        currentSequence = [triplet]
+        lastValue = triplet.value
+      }
+    })
+    
+    // 处理最后一个序列
+    if (currentSequence.length >= 2) {
+      currentSequence.forEach(t => {
+        t.cards.forEach(card => {
+          const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === t.value)
+          if (index !== -1) usedCards.add(index)
+        })
+        sortedHand.push(...t.cards)
+      })
+      console.log(`找到钢板: ${currentSequence.length}组连续三张`)
+    }
+  }
+  
+  // 优先级 5: 提取顺子 (Straights)
+  const extractStraights = () => {
+    const availableCards = getAvailableCards()
+    const groups = groupByValue(availableCards)
+    
+    const sortedValues = Array.from(groups.keys()).sort((a, b) => b - a)
+    let currentSequence: CardData[] = []
+    let lastValue = -1
+    
+    sortedValues.forEach(value => {
+      if (groups.get(value)!.length > 0) {
+        if (lastValue === -1 || lastValue - value === 1) {
+          currentSequence.push(groups.get(value)![0]) // 取一张
+          lastValue = value
+        } else {
+          // 检查当前序列是否>=5张
+          if (currentSequence.length >= 5) {
+            currentSequence.forEach(card => {
+              const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === getCardValue(card))
+              if (index !== -1) usedCards.add(index)
+            })
+            sortedHand.push(...currentSequence)
+            console.log(`找到顺子: ${currentSequence.length}张`)
+          }
+          currentSequence = groups.get(value)!.length > 0 ? [groups.get(value)![0]] : []
+          lastValue = value
+        }
+      }
+    })
+    
+    // 检查最后一个序列
+    if (currentSequence.length >= 5) {
+      currentSequence.forEach(card => {
+        const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === getCardValue(card))
+        if (index !== -1) usedCards.add(index)
+      })
+      sortedHand.push(...currentSequence)
+      console.log(`找到顺子: ${currentSequence.length}张`)
+    }
+  }
+  
+  // 优先级 6: 提取三连对 (Consecutive Pairs)
+  const extractConsecutivePairs = () => {
+    const availableCards = getAvailableCards()
+    const groups = groupByValue(availableCards)
+    
+    const pairs = Array.from(groups.entries())
+      .filter(([_, cards]) => cards.length >= 2)
+      .map(([value, cards]) => ({ value, cards: cards.slice(0, 2) }))
+      .sort((a, b) => b.value - a.value)
+    
+    // 寻找连续的对子
+    let currentSequence: { value: number, cards: CardData[] }[] = []
+    let lastValue = -1
+    
+    pairs.forEach(pair => {
+      if (lastValue === -1 || lastValue - pair.value === 1) {
+        currentSequence.push(pair)
+        lastValue = pair.value
+      } else {
+        // 处理当前序列
+        if (currentSequence.length >= 3) { // 至少3连对
+          currentSequence.forEach(p => {
+            p.cards.forEach(card => {
+              const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === p.value)
+              if (index !== -1) usedCards.add(index)
+            })
+            sortedHand.push(...p.cards)
+          })
+          console.log(`找到连对: ${currentSequence.length}连对`)
+        }
+        currentSequence = [pair]
+        lastValue = pair.value
+      }
+    })
+    
+    // 处理最后一个序列
+    if (currentSequence.length >= 3) {
+      currentSequence.forEach(p => {
+        p.cards.forEach(card => {
+          const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === p.value)
+          if (index !== -1) usedCards.add(index)
+        })
+        sortedHand.push(...p.cards)
+      })
+      console.log(`找到连对: ${currentSequence.length}连对`)
+    }
+  }
+  
+  // 收尾 (优先级 7, 8, 9): 处理剩余的三张、对子、单张
+  const extractRemaining = () => {
+    const availableCards = getAvailableCards()
+    const groups = groupByValue(availableCards)
+    
+    // 按牌值从大到小处理
+    const sortedValues = Array.from(groups.keys()).sort((a, b) => b - a)
+    
+    sortedValues.forEach(value => {
+      const valueCards = groups.get(value)!
+      if (valueCards.length >= 3) {
+        // 三张
+        const triplet = valueCards.slice(0, 3)
+        triplet.forEach(card => {
+          const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === value)
+          if (index !== -1) usedCards.add(index)
+        })
+        sortedHand.push(...triplet)
+      } else if (valueCards.length >= 2) {
+        // 对子
+        const pair = valueCards.slice(0, 2)
+        pair.forEach(card => {
+          const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === value)
+          if (index !== -1) usedCards.add(index)
+        })
+        sortedHand.push(...pair)
+      } else if (valueCards.length === 1) {
+        // 单张
+        const single = valueCards[0]
+        const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === value)
+        if (index !== -1) usedCards.add(index)
+        sortedHand.push(single)
+      }
+    })
+  }
+  
+  // 第二步：按绝对优先级执行终极贪心算法
+  extractJokerBomb()       // 优先级 1: 天王炸
+  extractStraightFlushes() // 优先级 2: 同花顺
+  extractBombs()           // 优先级 3: 炸弹
+  extractConsecutiveTriplets() // 优先级 4: 钢板
+  extractStraights()       // 优先级 5: 顺子
+  extractConsecutivePairs() // 优先级 6: 三连对
+  extractRemaining()       // 优先级 7,8,9: 三张、对子、单张
+  
+  // 第三步：更新状态
+  gameStore.updateMyHand(sortedHand)
+  console.log('智能整理完成！手牌已按专业级牌型优先级重新排列')
 }
 
 
