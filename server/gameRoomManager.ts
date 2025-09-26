@@ -9,6 +9,7 @@ import {
   PlayedCards,
   GuanDanCardType,
   dealCards, 
+  dealCardsToSinglePlayer,
   selectFirstPlayer, 
   createTeams,
   shufflePlayerOrder,
@@ -136,7 +137,31 @@ export class GameRoomManager {
     this.playerRooms.set(socketId, roomId);
     this.registerUserSocket(user.id, socketId);
     
-    console.log(`房间已创建: ${roomId}, 房主: ${user.username}`);
+    // 给房主发牌自娱自乐
+    const hostCards = dealCardsToSinglePlayer(user.id, room.currentLevel);
+    
+    // 初始化房间的游戏状态（等待状态下的单人游戏）
+    room.gameState = {
+      roomId: roomId,
+      players: [user.id],
+      teams: { team1: [user.id], team2: [] }, // 暂时只有房主在队伍1
+      hands: new Map([[user.id, hostCards]]),
+      currentPlayer: user.id,
+      playOrder: [user.id],
+      currentPlayerIndex: 0,
+      lastPlay: null,
+      tableCards: [],
+      gamePhase: 'waiting',
+      currentLevel: room.currentLevel,
+      levelProgress: { team1: 2, team2: 2 },
+      gameRound: room.gameRound,
+      finishedPlayers: [],
+      passedPlayers: new Set(),
+      consecutivePasses: 0,
+      isFirstPlay: true
+    };
+    
+    console.log(`房间已创建: ${roomId}, 房主: ${user.username}，已发牌给房主自娱自乐`);
     return room;
   }
 

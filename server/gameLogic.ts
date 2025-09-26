@@ -215,6 +215,21 @@ export function dealCards(playerIds: number[]): Map<number, Card[]> {
   return hands;
 }
 
+// 新增：给单个玩家发牌（房主自娱自乐）
+export function dealCardsToSinglePlayer(playerId: number, currentLevel: number = 2): Card[] {
+  const deck = createDeck(currentLevel);
+  const shuffledDeck = shuffleDeck(deck);
+  
+  // 给玩家发27张牌（正常游戏中每人的牌数）
+  const hand: Card[] = shuffledDeck.slice(0, 27);
+  
+  // 对手牌进行排序
+  hand.sort((a, b) => a.value - b.value);
+  
+  console.log(`房主玩家${playerId}收到${hand.length}张牌用于自娱自乐`);
+  return hand;
+}
+
 // 判断牌型（掼蛋完整规则）
 export function getPlayType(cards: Card[], currentLevel: number = 2): GuanDanCardType {
   if (cards.length === 0) return 'invalid';

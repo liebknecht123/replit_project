@@ -334,6 +334,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: `房间 ${room.id} 创建成功`
         });
 
+        // 立即发送手牌给房主自娱自乐
+        if (room.gameState && room.gameState.hands.has(socket.userInfo.id)) {
+          const hostCards = room.gameState.hands.get(socket.userInfo.id);
+          socket.emit('your_hand', {
+            cards: hostCards,
+            playerCount: hostCards?.length || 0
+          });
+          console.log(`🃏 向房主 ${socket.username} 发送自娱自乐手牌，共 ${hostCards?.length || 0} 张`);
+        }
+
         // 向所有连接的客户端广播房间列表更新
         const allRooms = gameRoomManager.getAllRooms();
         io.emit('global_rooms_update', {
