@@ -55,6 +55,19 @@
             :is-active="gameStore.gameStatus === 'playing'"
           />
         </div>
+
+        <!-- 操作面板 -->
+        <div class="center-action-area">
+          <ActionPanel
+            :can-play="canPlay"
+            :can-pass="canPass"
+            :is-my-turn="isMyTurn"
+            @play="handlePlay"
+            @pass="handlePass"
+            @hint="handleHint"
+            @auto-play="handleAutoPlay"
+          />
+        </div>
       </div>
 
       <!-- 右侧玩家 -->
@@ -78,20 +91,6 @@
             ref="playerHandRef"
             :cards="gameStore.myHand"
             @selection-change="handleSelectionChange"
-          />
-        </div>
-
-        <!-- 操作面板 -->
-        <div class="action-area">
-          <ActionPanel
-            :can-play="canPlay"
-            :can-pass="canPass"
-            :is-my-turn="isMyTurn"
-            @play="handlePlay"
-            @pass="handlePass"
-            @hint="handleHint"
-            @auto-play="handleAutoPlay"
-            @surrender="handleSurrender"
           />
         </div>
       </div>
@@ -246,10 +245,6 @@ const handleAutoPlay = () => {
   // 这里可以实现托管逻辑
 }
 
-const handleSurrender = () => {
-  console.log('认输')
-  // 这里可以实现认输逻辑
-}
 
 // 初始化模拟数据（用于演示）
 const initMockData = () => {
@@ -450,6 +445,12 @@ onUnmounted(() => {
 .timer-area {
   display: flex;
   justify-content: center;
+}
+
+.center-action-area {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
 }
 
 .bottom-area {

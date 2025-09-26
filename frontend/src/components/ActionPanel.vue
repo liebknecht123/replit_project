@@ -46,16 +46,6 @@
         <el-icon><MagicStick /></el-icon>
         智能托管
       </el-button>
-      
-      <el-button
-        type="danger"
-        size="small"
-        @click="handleSurrender"
-        class="surrender-btn"
-      >
-        <el-icon><CircleClose /></el-icon>
-        认输
-      </el-button>
     </div>
   </div>
 </template>
@@ -65,8 +55,7 @@ import {
   CaretRight, 
   Close, 
   QuestionFilled, 
-  MagicStick, 
-  CircleClose 
+  MagicStick
 } from '@element-plus/icons-vue'
 
 interface Props {
@@ -90,7 +79,6 @@ const emit = defineEmits<{
   pass: []
   hint: []
   autoPlay: []
-  surrender: []
 }>()
 
 const handlePlay = () => {
@@ -116,37 +104,34 @@ const handleAutoPlay = () => {
     emit('autoPlay')
   }
 }
-
-const handleSurrender = () => {
-  emit('surrender')
-}
 </script>
 
 <style scoped>
 .action-panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 20px;
+  gap: 10px;
+  padding: 12px 16px;
   background: rgba(0, 0, 0, 0.3);
-  border-radius: 16px;
+  border-radius: 12px;
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  transform: scale(0.8);
 }
 
 .action-buttons {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   justify-content: center;
   flex-wrap: wrap;
 }
 
 .action-btn {
-  min-width: 100px;
-  height: 48px;
-  font-size: 16px;
+  min-width: 80px;
+  height: 40px;
+  font-size: 14px;
   font-weight: bold;
-  border-radius: 12px;
+  border-radius: 10px;
   transition: all 0.3s ease;
 }
 
