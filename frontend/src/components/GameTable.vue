@@ -486,14 +486,24 @@ const handleAutoSort = () => {
           currentSequence.push(groups.get(value)![0]) // 取一张（跨花色）
           lastValue = value
         } else {
-          // 检查当前序列是否>=5张
-          if (currentSequence.length >= 5) {
+          // 检查当前序列是否正好5张（掼蛋标准顺子）
+          if (currentSequence.length === 5) {
             currentSequence.forEach(card => {
               const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === getCardValue(card))
               if (index !== -1) usedCards.add(index)
             })
             sortedHand.push(...currentSequence)
             console.log(`找到顺子: ${currentSequence.length}张`)
+          } else if (currentSequence.length > 5) {
+            // 如果超过5张，优先选择权值最大的5张组成顺子
+            const sortedSequence = [...currentSequence].sort((a, b) => getCardValue(b) - getCardValue(a))
+            const bestStraight = sortedSequence.slice(0, 5)
+            bestStraight.forEach(card => {
+              const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === getCardValue(card))
+              if (index !== -1) usedCards.add(index)
+            })
+            sortedHand.push(...bestStraight)
+            console.log(`找到顺子: 5张（从${currentSequence.length}张中选择权值最大的）`)
           }
           currentSequence = groups.get(value)!.length > 0 ? [groups.get(value)![0]] : []
           lastValue = value
@@ -502,13 +512,23 @@ const handleAutoSort = () => {
     })
     
     // 检查最后一个序列
-    if (currentSequence.length >= 5) {
+    if (currentSequence.length === 5) {
       currentSequence.forEach(card => {
         const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === getCardValue(card))
         if (index !== -1) usedCards.add(index)
       })
       sortedHand.push(...currentSequence)
       console.log(`找到顺子: ${currentSequence.length}张`)
+    } else if (currentSequence.length > 5) {
+      // 如果超过5张，优先选择权值最大的5张组成顺子
+      const sortedSequence = [...currentSequence].sort((a, b) => getCardValue(b) - getCardValue(a))
+      const bestStraight = sortedSequence.slice(0, 5)
+      bestStraight.forEach(card => {
+        const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === getCardValue(card))
+        if (index !== -1) usedCards.add(index)
+      })
+      sortedHand.push(...bestStraight)
+      console.log(`找到顺子: 5张（从${currentSequence.length}张中选择权值最大的）`)
     }
   }
   
