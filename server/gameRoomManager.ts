@@ -223,6 +223,14 @@ export class GameRoomManager {
     this.playerRooms.set(socketId, roomId);
     this.registerUserSocket(user.id, socketId);
     
+    // 给新加入的玩家发牌自娱自乐（如果还在等待状态）
+    if (room.status === 'waiting' && room.gameState) {
+      const playerCards = dealCardsToSinglePlayer(user.id, room.currentLevel);
+      room.gameState.hands.set(user.id, playerCards);
+      room.gameState.players.push(user.id);
+      console.log(`🃏 给新加入的玩家 ${user.username} 发牌自娱自乐，共 ${playerCards.length} 张`);
+    }
+    
     console.log(`玩家 ${user.username} 加入房间: ${roomId}`);
     return { success: true, message: '加入成功', room: room };
   }

@@ -590,6 +590,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               message: '成功加入房间'
             });
 
+            // 发送手牌给新加入的玩家（如果在等待状态且有手牌）
+            if (room.status === 'waiting' && room.gameState && room.gameState.hands.has(socket.userInfo.id)) {
+              const playerCards = room.gameState.hands.get(socket.userInfo.id);
+              socket.emit('your_hand', {
+                cards: playerCards,
+                playerCount: playerCards?.length || 0
+              });
+              console.log(`🃏 向新加入的玩家 ${socket.username} 发送自娱自乐手牌，共 ${playerCards?.length || 0} 张`);
+            }
+
             // 向所有连接的客户端广播房间列表更新
             const allRooms = gameRoomManager.getAllRooms();
             io.emit('global_rooms_update', {

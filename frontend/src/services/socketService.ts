@@ -232,6 +232,12 @@ class SocketService {
     }
   }
 
+  temporaryLeaveRoom() {
+    if (this.socket) {
+      this.socket.emit('temporary_leave_room')
+    }
+  }
+
   startGame() {
     if (this.socket) {
       this.socket.emit('start_game')
