@@ -49,11 +49,15 @@ export const useGameStore = defineStore('game', () => {
       (p.userId?.toString() || p.id) === myPlayerId.value
     )
     
+    // 如果找不到当前用户，将房主设为当前用户（防御性处理）
+    const actualMyIndex = myPlayerIndex >= 0 ? myPlayerIndex : 
+      newPlayers.findIndex(p => p.isHost === true)
+    
     players.value = newPlayers.map((serverPlayer, index) => ({
       id: serverPlayer.userId?.toString() || serverPlayer.id,
       name: serverPlayer.username || serverPlayer.name,
       cardCount: serverPlayer.cardCount || 27, // 默认手牌数
-      position: getPlayerPosition(index, newPlayers.length, myPlayerIndex),
+      position: getPlayerPosition(index, newPlayers.length, actualMyIndex),
       isCurrentPlayer: serverPlayer.isCurrentPlayer || false,
       isHost: serverPlayer.isHost || false,
       avatar: serverPlayer.avatar

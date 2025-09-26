@@ -66,6 +66,10 @@ class SocketService {
     this.socket.on('room_joined', (data) => {
       console.log('加入房间成功:', data)
       this.gameStore.setRoomId(data.roomId)
+      // 确保设置当前用户ID
+      if (data.currentUserId) {
+        this.gameStore.setMyPlayerId(data.currentUserId.toString())
+      }
       this.gameStore.updatePlayers(data.players)
       this.gameStore.updateGameStatus('waiting')
     })
@@ -84,6 +88,10 @@ class SocketService {
     this.socket.on('room_update', (data) => {
       console.log('房间状态更新:', data)
       if (data.players) {
+        // 确保设置当前用户ID（如果还没有设置）
+        if (data.currentUserId) {
+          this.gameStore.setMyPlayerId(data.currentUserId.toString())
+        }
         this.gameStore.updatePlayers(data.players)
       }
     })

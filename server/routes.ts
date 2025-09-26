@@ -477,6 +477,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               message: `${socket.userInfo.username} 加入了房间`
             });
 
+            // 向加入的玩家发送包含当前用户ID的确认
+            socket.emit('room_joined', {
+              success: true,
+              roomId: room.id,
+              room: room,
+              players: room.players,
+              currentUserId: socket.userInfo.id,
+              message: '成功加入房间'
+            });
+
             // 向所有连接的客户端广播房间列表更新
             const allRooms = gameRoomManager.getAllRooms();
             io.emit('global_rooms_update', {
@@ -612,17 +622,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
             io.sockets.sockets.get(kickedSocketId)?.leave(currentRoom.id);
           }
 
-          // 向房间内其他玩家广播更新
-          io.to(currentRoom.id).emit('room_update', {
-            type: 'player_kicked',
-            roomId: result.room.id,
-            room: result.room,
-            players: result.room.players,
-            status: result.room.status,
-            hostUserId: result.room.hostUserId,
-            playerCount: result.room.players.length,
-            maxPlayers: result.room.maxPlayers,
-            message: `${result.kickedPlayer.username} 已被踢出房间`
+          // 向房间内其他玩家广播更新（每个人收到自己的currentUserId）
+          result.room.players.forEach(player => {
+            if (player.socketId) {
+              io.to(player.socketId).emit('room_update', {
+                type: 'player_kicked',
+                roomId: result.room.id,
+                room: result.room,
+                players: result.room.players,
+                status: result.room.status,
+                hostUserId: result.room.hostUserId,
+                playerCount: result.room.players.length,
+                maxPlayers: result.room.maxPlayers,
+                currentUserId: player.userId,
+                message: `${result.kickedPlayer.username} 已被踢出房间`
+              });
+            }
           });
 
           // 向发起踢人的房主发送成功响应
