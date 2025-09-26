@@ -382,7 +382,6 @@ onUnmounted(() => {
   justify-content: center;
   gap: 40px;
   min-height: 300px;
-  transform: translateY(200px);
 }
 
 .played-cards-area {
