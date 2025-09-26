@@ -33,15 +33,13 @@
         <el-icon><QuestionFilled /></el-icon>
         提示
       </el-button>
-    </div>
-    
-    <div class="game-actions">
+      
       <el-button
         type="success"
-        size="small"
+        size="large"
         @click="handleAutoPlay"
         :disabled="!canAutoPlay"
-        class="auto-btn"
+        class="action-btn auto-btn"
       >
         <el-icon><MagicStick /></el-icon>
         智能托管
@@ -110,28 +108,29 @@ const handleAutoPlay = () => {
 .action-panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px 16px;
+  gap: 13px;
+  padding: 16px 21px;
   background: rgba(0, 0, 0, 0.3);
-  border-radius: 12px;
+  border-radius: 16px;
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  transform: scale(0.8);
+  transform: scale(1.04);
 }
 
 .action-buttons {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   justify-content: center;
+  align-items: center;
   flex-wrap: wrap;
 }
 
 .action-btn {
-  min-width: 80px;
-  height: 40px;
-  font-size: 14px;
+  min-width: 104px;
+  height: 52px;
+  font-size: 18px;
   font-weight: bold;
-  border-radius: 10px;
+  border-radius: 13px;
   transition: all 0.3s ease;
 }
 
