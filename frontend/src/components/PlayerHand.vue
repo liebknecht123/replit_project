@@ -69,30 +69,23 @@ const getSuitOrder = (suit: string): number => {
 
 // 缓存的分组排序结果，避免每次重新计算
 const groupedAndSortedCards = computed(() => {
-  // 先按点数分组
-  const groups = new Map<string | number, CardData[]>()
-  
-  props.cards.forEach(card => {
-    const key = card.rank
-    if (!groups.has(key)) {
-      groups.set(key, [])
+  // 直接按花色优先排序，花色内按点数排序
+  const sortedCards = [...props.cards].sort((a, b) => {
+    // 先按花色排序
+    const suitOrderA = getSuitOrder(a.suit)
+    const suitOrderB = getSuitOrder(b.suit)
+    
+    if (suitOrderA !== suitOrderB) {
+      return suitOrderA - suitOrderB
     }
-    groups.get(key)!.push(card)
-  })
-  
-  // 对每组内的卡牌按花色排序
-  for (const group of groups.values()) {
-    group.sort((a, b) => getSuitOrder(a.suit) - getSuitOrder(b.suit))
-  }
-  
-  // 按点数排序分组，然后展平
-  const sortedGroups = Array.from(groups.entries()).sort((a, b) => {
-    const rankA = typeof a[0] === 'string' ? (a[0] === 'small' ? 100 : 101) : a[0]
-    const rankB = typeof b[0] === 'string' ? (b[0] === 'small' ? 100 : 101) : b[0]
+    
+    // 同花色内按点数排序
+    const rankA = typeof a.rank === 'string' ? (a.rank === 'small' ? 100 : 101) : a.rank
+    const rankB = typeof b.rank === 'string' ? (b.rank === 'small' ? 100 : 101) : b.rank
     return rankA - rankB
   })
   
-  return sortedGroups.flatMap(([_, cards]) => cards)
+  return sortedCards
 })
 
 const getCardStyle = (index: number) => {
