@@ -105,6 +105,18 @@
     <!-- 底部区域 - 我的区域 -->
     <div class="bottom-area">
       <div class="my-area">
+        <!-- 控制按钮区域 -->
+        <div class="control-buttons">
+          <button 
+            class="back-to-lobby-btn"
+            @click="handleBackToLobby"
+            data-testid="button-back-to-lobby"
+          >
+            <el-icon><Loading /></el-icon>
+            回到大厅
+          </button>
+        </div>
+        
         <!-- 我的手牌 -->
         <div class="hand-area">
           <PlayerHand
@@ -131,7 +143,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { Loading, SuccessFilled } from '@element-plus/icons-vue'
+import { Loading, SuccessFilled, ArrowLeft } from '@element-plus/icons-vue'
 import PlayerAvatar from './PlayerAvatar.vue'
 import PlayerHand from './PlayerHand.vue'
 import Card from './Card.vue'
@@ -181,6 +193,14 @@ const isCurrentUserHost = computed(() => {
 const handleKickPlayer = (playerId: string) => {
   console.log('准备踢出玩家:', playerId)
   socketService.kickPlayer(parseInt(playerId))
+}
+
+// 回到大厅功能
+const handleBackToLobby = () => {
+  console.log('回到大厅')
+  socketService.leaveRoom()
+  // 跳转到大厅页面
+  window.location.href = '/lobby'
 }
 
 // 手牌数据现在从WebSocket服务器获取
@@ -786,6 +806,34 @@ onUnmounted(() => {
   display: flex;
   justify-content: center;
   flex-shrink: 0;
+}
+
+/* 控制按钮样式 */
+.control-buttons {
+  display: flex;
+  justify-content: flex-start;
+  padding: 10px 0;
+  margin-bottom: 10px;
+}
+
+.back-to-lobby-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.back-to-lobby-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
 }
 
 .game-status-overlay {
