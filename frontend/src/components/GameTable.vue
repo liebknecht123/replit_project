@@ -357,7 +357,7 @@ onUnmounted(() => {
   justify-content: center;
   align-items: center;
   padding: 20px;
-  transform: translateY(10px);
+  transform: translateY(20px);
 }
 
 .middle-area {
