@@ -72,7 +72,7 @@ withDefaults(defineProps<Props>(), {
 }
 
 .player-name {
-  font-size: 16px;
+  font-size: 24px;
   font-weight: bold;
   margin-bottom: 4px;
 }
