@@ -149,7 +149,7 @@ defineExpose({
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  transform: translateY(-30px);
+  transform: translateY(-50px);
 }
 
 .hand-container {
