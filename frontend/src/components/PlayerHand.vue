@@ -93,7 +93,7 @@ const getCardStyle = (index: number) => {
   const maxWidth = 1400 // 增加最大宽度以适应更大的卡牌
   const cardWidth = 67.5 // 卡牌宽度增大1.5倍
   
-  // 计算扇形排列的参数 - 严格确保80%可见度
+  // 计算直列排列的参数 - 严格确保80%可见度
   // 80%可见度意味着间距必须至少是卡牌宽度的80%
   const minSpacing = cardWidth * 0.8 // 最小间距确保80%可见度
   const idealSpacing = cardWidth * 0.85 // 理想间距为85%，稍微更宽松
@@ -111,15 +111,9 @@ const getCardStyle = (index: number) => {
   // 计算当前卡牌的水平位置
   const cardX = startOffset + index * cardSpacing
   
-  // 计算扇形旋转角度（从中心向两边扩散）
-  const maxRotation = 12 // 最大旋转角度
-  const centerIndex = (totalCards - 1) / 2
-  const distanceFromCenter = index - centerIndex
-  const rotationAngle = totalCards > 1 ? 
-    (distanceFromCenter / Math.max(centerIndex, 1)) * maxRotation : 0
-  
-  // 根据旋转角度计算轻微的垂直偏移，形成弧形效果
-  const verticalOffset = Math.abs(rotationAngle) * 1.2
+  // 直列形排列：无旋转角度，无垂直偏移
+  const rotationAngle = 0
+  const verticalOffset = 0
   
   return {
     '--card-x': `${cardX}px`,
