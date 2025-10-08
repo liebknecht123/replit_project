@@ -19,7 +19,7 @@
             v-model="loginForm.username"
             placeholder="请输入用户名"
             data-testid="input-username"
-            prefix-icon="User"
+            :prefix-icon="User"
             clearable
           />
         </el-form-item>
@@ -30,7 +30,7 @@
             type="password"
             placeholder="请输入密码"
             data-testid="input-password"
-            prefix-icon="Lock"
+            :prefix-icon="Lock"
             show-password
             clearable
             @keyup.enter="handleLogin"
