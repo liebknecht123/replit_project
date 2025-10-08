@@ -99,6 +99,7 @@
             :can-play="canPlay"
             :can-pass="canPass"
             :can-auto-sort="true"
+            :can-manual-sort="canManualSort"
             :can-restore="canRestore"
             :show-restore="showRestore"
             :is-my-turn="isMyTurn"
@@ -106,6 +107,7 @@
             @pass="handlePass"
             @hint="handleHint"
             @auto-sort="handleAutoSort"
+            @manual-sort="handleManualSort"
             @restore="handleRestore"
           />
         </div>
@@ -170,6 +172,7 @@ import socketService from '@/services/socketService'
 import type { CardData } from '@/types/game'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { detectCardPattern, isSpecialPattern, compareCardGroups } from '@/../../shared/cards'
 
 // 使用状态管理
 const gameStore = useGameStore()
@@ -200,6 +203,14 @@ const lastPlayType = computed(() => gameStore.lastPlay?.playType || '')
 // 恢复功能相关计算属性
 const canRestore = computed(() => hasSorted.value && originalHand.value.length > 0)
 const showRestore = computed(() => hasSorted.value)
+
+// 手动理牌功能相关计算属性
+const canManualSort = computed(() => {
+  // 必须有选中的牌
+  if (selectedCards.value.length === 0) return false
+  // 选中的牌必须是特殊牌型
+  return isSpecialPattern(selectedCards.value)
+})
 
 // 踢人功能相关计算属性
 const currentUserId = computed(() => gameStore.myPlayerId)
@@ -336,6 +347,84 @@ const handlePass = () => {
 const handleHint = () => {
   console.log('提示')
   // 这里可以实现智能提示逻辑
+}
+
+const handleManualSort = () => {
+  console.log('手动理牌')
+  
+  // 检查是否有选中的牌
+  if (selectedCards.value.length === 0) {
+    ElMessage.warning('请先选择要理牌的牌')
+    return
+  }
+  
+  // 验证选中的牌是否为特殊牌型
+  const pattern = detectCardPattern(selectedCards.value)
+  if (!isSpecialPattern(selectedCards.value)) {
+    ElMessage.warning('您所选择的牌无法组成特定样式')
+    return
+  }
+  
+  // 保存原始牌型（仅在第一次整理时）
+  if (!hasSorted.value) {
+    originalHand.value = [...gameStore.myHand]
+  }
+  
+  // 获取当前手牌（权威来源）
+  const currentHand = [...gameStore.myHand]
+  
+  // 从当前手牌中提取选中的牌（重新绑定到当前手牌对象）
+  const selectedGroup: CardData[] = []
+  const remainingCards: CardData[] = []
+  const selectedCount = new Map<string, number>()
+  
+  // 统计选中牌的数量
+  selectedCards.value.forEach(card => {
+    const key = `${card.suit}-${card.rank}`
+    selectedCount.set(key, (selectedCount.get(key) || 0) + 1)
+  })
+  
+  // 从当前手牌中分离选中的牌和剩余的牌
+  const toExtract = new Map(selectedCount)
+  currentHand.forEach(card => {
+    const key = `${card.suit}-${card.rank}`
+    const needed = toExtract.get(key) || 0
+    if (needed > 0) {
+      selectedGroup.push(card) // 使用当前手牌中的牌对象
+      toExtract.set(key, needed - 1)
+    } else {
+      remainingCards.push(card)
+    }
+  })
+  
+  // 验证是否成功提取了所有选中的牌
+  if (selectedGroup.length !== selectedCards.value.length) {
+    ElMessage.error('选中的牌在当前手牌中不存在，无法理牌')
+    return
+  }
+  
+  // 重新组合手牌：选中的牌型在最前方，剩余的牌保持原序
+  const newHand = [...selectedGroup, ...remainingCards]
+  
+  // 验证手牌数量没有变化
+  if (newHand.length !== currentHand.length) {
+    console.error('手动理牌错误：手牌数量不匹配', {
+      original: currentHand.length,
+      new: newHand.length
+    })
+    ElMessage.error('手动理牌失败，请重试')
+    return
+  }
+  
+  // 更新手牌
+  gameStore.updateMyHand(newHand)
+  hasSorted.value = true
+  
+  // 清空选择
+  playerHandRef.value?.clearSelection()
+  selectedCards.value = []
+  
+  ElMessage.success(`已将${pattern}移至手牌前方`)
 }
 
 const handleAutoSort = () => {

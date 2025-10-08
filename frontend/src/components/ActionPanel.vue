@@ -46,6 +46,16 @@
       </el-button>
       
       <el-button
+        size="large"
+        @click="handleManualSort"
+        :disabled="!canManualSort"
+        class="action-btn manual-sort-btn"
+      >
+        <el-icon><Edit /></el-icon>
+        手动理牌
+      </el-button>
+      
+      <el-button
         type="primary"
         size="large"
         @click="handleRestore"
@@ -66,7 +76,8 @@ import {
   Close, 
   QuestionFilled, 
   MagicStick,
-  RefreshLeft
+  RefreshLeft,
+  Edit
 } from '@element-plus/icons-vue'
 
 interface Props {
@@ -74,6 +85,7 @@ interface Props {
   canPass?: boolean
   canHint?: boolean
   canAutoSort?: boolean
+  canManualSort?: boolean
   canRestore?: boolean
   showRestore?: boolean
   isMyTurn?: boolean
@@ -84,6 +96,7 @@ const props = withDefaults(defineProps<Props>(), {
   canPass: false,
   canHint: true,
   canAutoSort: true,
+  canManualSort: false,
   canRestore: false,
   showRestore: false,
   isMyTurn: false
@@ -94,6 +107,7 @@ const emit = defineEmits<{
   pass: []
   hint: []
   autoSort: []
+  manualSort: []
   restore: []
 }>()
 
@@ -118,6 +132,12 @@ const handleHint = () => {
 const handleAutoSort = () => {
   if (props.canAutoSort) {
     emit('autoSort')
+  }
+}
+
+const handleManualSort = () => {
+  if (props.canManualSort) {
+    emit('manualSort')
   }
 }
 
@@ -199,6 +219,17 @@ const handleRestore = () => {
   background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
   border: none;
   color: white;
+}
+
+.manual-sort-btn {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  border: none;
+  color: white;
+}
+
+.manual-sort-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(249, 115, 22, 0.4);
 }
 
 .restore-btn {
