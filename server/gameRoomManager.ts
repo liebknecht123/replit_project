@@ -178,15 +178,14 @@ export class GameRoomManager {
       room = loadedRoom;
     }
 
-    if (room.players.length >= room.maxPlayers) {
-      return { success: false, message: '房间已满' };
-    }
+    // 🔧 修复：先清理重复玩家，确保房间玩家列表准确
+    this.cleanupDuplicatePlayersInRoom(roomId);
 
     if (room.status !== 'waiting') {
       return { success: false, message: '房间已开始游戏，无法加入' };
     }
 
-    // 检查用户是否已在房间中
+    // 检查用户是否已在房间中（清理后再检查）
     const existingPlayer = room.players.find(p => p.userId === user.id);
     if (existingPlayer) {
       // 如果是重连情况，更新socket信息而不是拒绝
@@ -200,6 +199,11 @@ export class GameRoomManager {
       } else {
         return { success: false, message: '您已在该房间中' };
       }
+    }
+
+    // 🔧 修复：在清理重复玩家后再检查房间是否已满
+    if (room.players.length >= room.maxPlayers) {
+      return { success: false, message: '房间已满' };
     }
 
     // 添加到数据库
@@ -537,13 +541,18 @@ export class GameRoomManager {
       return { success: false, message: '房间不存在' };
     }
     
+    // 🔧 修复：在开始游戏前先清理重复玩家
+    this.cleanupDuplicatePlayersInRoom(roomId);
+    
     // 如果不是自动开始，需要验证房主权限
     if (!isAutoStart && room.hostUserId !== hostUserId) {
       return { success: false, message: '只有房主可以开始游戏' };
     }
     
+    // 🔧 修复：清理后再次检查玩家数量
     if (room.players.length !== 4) {
-      return { success: false, message: '掼蛋需要恰好4个玩家才能开始游戏' };
+      console.error(`❌ 房间 ${roomId} 玩家数量不正确: ${room.players.length} 个玩家，需要恰好4个`);
+      return { success: false, message: `掼蛋需要恰好4个玩家才能开始游戏（当前${room.players.length}个）` };
     }
     
     if (room.status !== 'waiting') {
@@ -553,9 +562,17 @@ export class GameRoomManager {
     // 导入游戏逻辑
     const { dealCards, shufflePlayerOrder, selectFirstPlayer } = await import('./gameLogic');
     
-    // 创建游戏状态
-    const playerIds = room.players.map(p => p.userId);
-    console.log(`房间 ${roomId} 开始游戏，玩家列表: [${playerIds.join(', ')}]`);
+    // 🔧 修复：确保玩家ID列表唯一且不重复
+    const playerIds = Array.from(new Set(room.players.map(p => p.userId)));
+    
+    // 🔧 修复：双重检查玩家ID数量
+    if (playerIds.length !== 4) {
+      console.error(`❌ 房间 ${roomId} 唯一玩家ID数量不正确: ${playerIds.length} 个，需要恰好4个`);
+      console.error(`   玩家列表: ${JSON.stringify(room.players.map(p => ({ userId: p.userId, username: p.username })))}`);
+      return { success: false, message: `玩家数据异常，请重新加入房间` };
+    }
+    
+    console.log(`✅ 房间 ${roomId} 开始游戏，玩家列表: [${playerIds.join(', ')}]`);
     
     let hands: Map<number, import('./gameLogic').Card[]>;
     try {
