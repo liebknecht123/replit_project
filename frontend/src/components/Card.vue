@@ -48,6 +48,7 @@ const displaySuit = computed(() => {
 
 const displayRank = computed(() => {
   if (props.suit === 'joker') return ''
+  if (props.rank === 1) return 'A'
   if (props.rank === 11) return 'J'
   if (props.rank === 12) return 'Q'
   if (props.rank === 13) return 'K'
