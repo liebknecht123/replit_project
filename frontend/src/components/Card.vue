@@ -6,6 +6,7 @@
       'red': isRed,
       'black': isBlack
     }"
+    :data-suit="suit"
     @click="$emit('click')"
   >
     <!-- 左上角：数字 + 小花色 -->
@@ -45,7 +46,7 @@ const displaySuit = computed(() => {
     hearts: '♥',
     diamonds: '♦',
     clubs: '♣',
-    spades: '♠',
+    spades: '♥', // 使用红桃符号，通过CSS旋转180度
     joker: '🃏'
   }
   return suitMap[props.suit]
@@ -151,5 +152,17 @@ const displayRank = computed(() => {
 
 .card[data-suit="joker"] .suit-large {
   font-size: 36px;
+}
+
+/* 方块：加宽显示（高度不变，左右方向拉宽） */
+.card[data-suit="diamonds"] .suit-small,
+.card[data-suit="diamonds"] .suit-large {
+  transform: scaleX(1.4);
+}
+
+/* 黑桃：使用红桃符号旋转180度 */
+.card[data-suit="spades"] .suit-small,
+.card[data-suit="spades"] .suit-large {
+  transform: rotate(180deg);
 }
 </style>
