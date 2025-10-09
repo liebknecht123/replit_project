@@ -365,9 +365,14 @@ const handleManualSort = () => {
     return
   }
   
-  // 保存原始牌型（仅在第一次整理时）
+  // 保存原始牌型（仅在第一次整理时）- 深拷贝并清除groupId
   if (!hasSorted.value) {
-    originalHand.value = [...gameStore.myHand]
+    originalHand.value = JSON.parse(JSON.stringify(
+      gameStore.myHand.map(card => {
+        const { groupId: _, ...cardWithoutGroup } = card
+        return cardWithoutGroup
+      })
+    ))
   }
   
   // 获取当前手牌（权威来源）
@@ -438,9 +443,14 @@ const handleManualSort = () => {
 const handleAutoSort = () => {
   console.log('智能整理')
   
-  // 保存原始牌型（仅在第一次整理时）
+  // 保存原始牌型（仅在第一次整理时）- 深拷贝并清除groupId
   if (!hasSorted.value) {
-    originalHand.value = [...gameStore.myHand]
+    originalHand.value = JSON.parse(JSON.stringify(
+      gameStore.myHand.map(card => {
+        const { groupId: _, ...cardWithoutGroup } = card
+        return cardWithoutGroup
+      })
+    ))
   }
   
   // 第一步：数据预处理 - 清除所有旧的groupId
@@ -807,7 +817,9 @@ const handleAutoSort = () => {
 const handleRestore = () => {
   console.log('恢复牌型')
   if (originalHand.value.length > 0) {
-    gameStore.updateMyHand([...originalHand.value])
+    // 深拷贝originalHand，确保不受后续操作影响
+    const restoredHand = JSON.parse(JSON.stringify(originalHand.value))
+    gameStore.updateMyHand(restoredHand)
     hasSorted.value = false
     console.log('手牌已恢复到原始顺序')
   }
