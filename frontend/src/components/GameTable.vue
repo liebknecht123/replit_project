@@ -534,15 +534,16 @@ const handleAutoSort = () => {
           currentSequence.push(card)
           lastValue = value
         } else {
-          // 检查当前序列是否>=5张
+          // 同花顺只能是5张，如果超过5张则选择牌权最大的5张
           if (currentSequence.length >= 5) {
+            const straightFlush = currentSequence.slice(0, 5) // 取前5张（已按降序排列，是牌权最大的）
             const groupId = `auto-sf-${groupCounter++}`
-            currentSequence.forEach(c => {
+            straightFlush.forEach(c => {
               const index = cards.findIndex((card, i) => !usedCards.has(i) && card.suit === c.suit && card.rank === c.rank)
               if (index !== -1) usedCards.add(index)
             })
-            sortedHand.push(...currentSequence.map(card => ({ ...card, groupId })))
-            console.log(`找到同花顺: ${currentSequence.length}张`)
+            sortedHand.push(...straightFlush.map(card => ({ ...card, groupId })))
+            console.log(`找到同花顺: 5张（从${currentSequence.length}张中选择牌权最大的）`)
           }
           currentSequence = [card]
           lastValue = value
@@ -551,13 +552,14 @@ const handleAutoSort = () => {
       
       // 检查最后一个序列
       if (currentSequence.length >= 5) {
+        const straightFlush = currentSequence.slice(0, 5) // 取前5张（已按降序排列，是牌权最大的）
         const groupId = `auto-sf-${groupCounter++}`
-        currentSequence.forEach(c => {
+        straightFlush.forEach(c => {
           const index = cards.findIndex((card, i) => !usedCards.has(i) && card.suit === c.suit && card.rank === c.rank)
           if (index !== -1) usedCards.add(index)
         })
-        sortedHand.push(...currentSequence.map(card => ({ ...card, groupId })))
-        console.log(`找到同花顺: ${currentSequence.length}张`)
+        sortedHand.push(...straightFlush.map(card => ({ ...card, groupId })))
+        console.log(`找到同花顺: 5张（从${currentSequence.length}张中选择牌权最大的）`)
       }
     })
   }

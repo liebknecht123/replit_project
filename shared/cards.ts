@@ -78,8 +78,8 @@ export function detectCardPattern(cards: CardData[]): GuanDanCardType {
     }
   }
   
-  // 同花顺：5+张同花色连续牌
-  if (cards.length >= 5 && cards.every(card => card.suit === sortedCards[0].suit && card.suit !== 'joker')) {
+  // 同花顺：只能是恰好5张同花色连续牌
+  if (cards.length === 5 && cards.every(card => card.suit === sortedCards[0].suit && card.suit !== 'joker')) {
     const values = sortedCards.map(c => getCardValue(c));
     if (isConsecutive(values)) {
       return 'straight_flush';
