@@ -2,6 +2,7 @@ export interface CardData {
   suit: 'hearts' | 'diamonds' | 'clubs' | 'spades' | 'joker'
   rank: string | number
   id?: string
+  groupId?: string  // 特殊牌型分组ID
 }
 
 export interface Player {

@@ -384,16 +384,22 @@ const handleManualSort = () => {
     selectedCount.set(key, (selectedCount.get(key) || 0) + 1)
   })
   
+  // 生成唯一的分组ID
+  const groupId = `manual-${Date.now()}`
+  
   // 从当前手牌中分离选中的牌和剩余的牌
   const toExtract = new Map(selectedCount)
   currentHand.forEach(card => {
     const key = `${card.suit}-${card.rank}`
     const needed = toExtract.get(key) || 0
     if (needed > 0) {
-      selectedGroup.push(card) // 使用当前手牌中的牌对象
+      // 使用当前手牌中的牌对象，并添加分组ID
+      selectedGroup.push({ ...card, groupId })
       toExtract.set(key, needed - 1)
     } else {
-      remainingCards.push(card)
+      // 移除旧的分组ID（如果有）
+      const { groupId: _, ...cardWithoutGroup } = card
+      remainingCards.push(cardWithoutGroup as CardData)
     }
   })
   
@@ -435,10 +441,14 @@ const handleAutoSort = () => {
     originalHand.value = [...gameStore.myHand]
   }
   
-  // 第一步：数据预处理
-  const cards = [...gameStore.myHand]
+  // 第一步：数据预处理 - 清除所有旧的groupId
+  const cards = gameStore.myHand.map(card => {
+    const { groupId: _, ...cardWithoutGroup } = card
+    return cardWithoutGroup as CardData
+  })
   const usedCards = new Set<number>() // 记录已使用的牌的索引
   const sortedHand: CardData[] = []
+  let groupCounter = 0 // 分组计数器
   
   // 定义牌值映射
   const getCardValue = (card: CardData): number => {
@@ -475,11 +485,12 @@ const handleAutoSort = () => {
     if (bigJokers.length >= 2 && smallJokers.length >= 2) {
       // 找到天王炸
       const jokerBomb = [...bigJokers.slice(0, 2), ...smallJokers.slice(0, 2)]
+      const groupId = `auto-joker-${Date.now()}`
       jokerBomb.forEach(card => {
         const index = cards.findIndex((c, i) => !usedCards.has(i) && c.suit === card.suit && c.rank === card.rank)
         if (index !== -1) usedCards.add(index)
       })
-      sortedHand.push(...jokerBomb)
+      sortedHand.push(...jokerBomb.map(card => ({ ...card, groupId })))
       console.log('找到天王炸!')
     }
   }
@@ -513,11 +524,12 @@ const handleAutoSort = () => {
         } else {
           // 检查当前序列是否>=5张
           if (currentSequence.length >= 5) {
+            const groupId = `auto-sf-${groupCounter++}`
             currentSequence.forEach(c => {
               const index = cards.findIndex((card, i) => !usedCards.has(i) && card.suit === c.suit && card.rank === c.rank)
               if (index !== -1) usedCards.add(index)
             })
-            sortedHand.push(...currentSequence)
+            sortedHand.push(...currentSequence.map(card => ({ ...card, groupId })))
             console.log(`找到同花顺: ${currentSequence.length}张`)
           }
           currentSequence = [card]
@@ -527,11 +539,12 @@ const handleAutoSort = () => {
       
       // 检查最后一个序列
       if (currentSequence.length >= 5) {
+        const groupId = `auto-sf-${groupCounter++}`
         currentSequence.forEach(c => {
           const index = cards.findIndex((card, i) => !usedCards.has(i) && card.suit === c.suit && card.rank === c.rank)
           if (index !== -1) usedCards.add(index)
         })
-        sortedHand.push(...currentSequence)
+        sortedHand.push(...currentSequence.map(card => ({ ...card, groupId })))
         console.log(`找到同花顺: ${currentSequence.length}张`)
       }
     })
@@ -546,11 +559,12 @@ const handleAutoSort = () => {
       .filter(([_, cards]) => cards.length >= 4)
       .sort(([a], [b]) => b - a) // 按牌值从大到小
       .forEach(([value, bombCards]) => {
+        const groupId = `auto-bomb-${groupCounter++}`
         bombCards.forEach(card => {
           const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === value)
           if (index !== -1) usedCards.add(index)
         })
-        sortedHand.push(...bombCards)
+        sortedHand.push(...bombCards.map(card => ({ ...card, groupId })))
         console.log(`找到炸弹: ${bombCards.length}张${value}`)
       })
   }
@@ -576,12 +590,13 @@ const handleAutoSort = () => {
       } else {
         // 处理当前序列
         if (currentSequence.length >= 2) {
+          const groupId = `auto-steel-${groupCounter++}`
           currentSequence.forEach(t => {
             t.cards.forEach(card => {
               const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === t.value)
               if (index !== -1) usedCards.add(index)
             })
-            sortedHand.push(...t.cards)
+            sortedHand.push(...t.cards.map(card => ({ ...card, groupId })))
           })
           console.log(`找到钢板: ${currentSequence.length}组连续三张`)
         }
@@ -592,12 +607,13 @@ const handleAutoSort = () => {
     
     // 处理最后一个序列
     if (currentSequence.length >= 2) {
+      const groupId = `auto-steel-${groupCounter++}`
       currentSequence.forEach(t => {
         t.cards.forEach(card => {
           const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === t.value)
           if (index !== -1) usedCards.add(index)
         })
-        sortedHand.push(...t.cards)
+        sortedHand.push(...t.cards.map(card => ({ ...card, groupId })))
       })
       console.log(`找到钢板: ${currentSequence.length}组连续三张`)
     }
@@ -669,11 +685,12 @@ const handleAutoSort = () => {
       if (!bestStraight) break // 没有更多顺子可组成
       
       // 标记使用的牌
+      const groupId = `auto-straight-${groupCounter++}`
       bestStraight.forEach(card => {
         const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === getCardValue(card))
         if (index !== -1) usedCards.add(index)
       })
-      sortedHand.push(...bestStraight)
+      sortedHand.push(...bestStraight.map(card => ({ ...card, groupId })))
       straightCount++
     }
     
@@ -703,12 +720,13 @@ const handleAutoSort = () => {
       } else {
         // 处理当前序列
         if (currentSequence.length >= 3) { // 至少3连对
+          const groupId = `auto-pairs-${groupCounter++}`
           currentSequence.forEach(p => {
             p.cards.forEach(card => {
               const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === p.value)
               if (index !== -1) usedCards.add(index)
             })
-            sortedHand.push(...p.cards)
+            sortedHand.push(...p.cards.map(card => ({ ...card, groupId })))
           })
           console.log(`找到连对: ${currentSequence.length}连对`)
         }
@@ -719,12 +737,13 @@ const handleAutoSort = () => {
     
     // 处理最后一个序列
     if (currentSequence.length >= 3) {
+      const groupId = `auto-pairs-${groupCounter++}`
       currentSequence.forEach(p => {
         p.cards.forEach(card => {
           const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === p.value)
           if (index !== -1) usedCards.add(index)
         })
-        sortedHand.push(...p.cards)
+        sortedHand.push(...p.cards.map(card => ({ ...card, groupId })))
       })
       console.log(`找到连对: ${currentSequence.length}连对`)
     }

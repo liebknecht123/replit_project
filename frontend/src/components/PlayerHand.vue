@@ -92,33 +92,147 @@ const getCardStyle = (index: number) => {
   const totalCards = props.cards.length
   const maxWidth = 1400 // 增加最大宽度以适应更大的卡牌
   const cardWidth = 67.5 // 卡牌宽度增大1.5倍
+  const cardHeight = 100 // 卡牌高度
   
-  // 计算直列排列的参数 - 严格确保80%可见度
-  // 80%可见度意味着间距必须至少是卡牌宽度的80%
-  const minSpacing = cardWidth * 0.8 // 最小间距确保80%可见度
-  const idealSpacing = cardWidth * 0.85 // 理想间距为85%，稍微更宽松
+  const currentCard = props.cards[index]
+  const currentGroupId = currentCard.groupId
   
-  // 计算可用宽度下的理论间距
-  const availableSpacing = totalCards > 1 ? (maxWidth - cardWidth) / (totalCards - 1) : cardWidth
+  // 检查当前牌是否有分组
+  if (currentGroupId) {
+    // 找到同组的所有牌
+    const groupCards = props.cards.filter(card => card.groupId === currentGroupId)
+    const groupStartIndex = props.cards.findIndex(card => card.groupId === currentGroupId)
+    const indexInGroup = index - groupStartIndex
+    
+    // 计算分组的基础X位置（整个分组作为一个单元）
+    const groupsInfo: { groupId: string; startIndex: number; count: number }[] = []
+    let currentGroup: { groupId: string; startIndex: number; count: number } | null = null
+    
+    props.cards.forEach((card, idx) => {
+      if (card.groupId) {
+        if (!currentGroup || currentGroup.groupId !== card.groupId) {
+          currentGroup = { groupId: card.groupId, startIndex: idx, count: 1 }
+          groupsInfo.push(currentGroup)
+        } else {
+          currentGroup.count++
+        }
+      } else {
+        currentGroup = null
+      }
+    })
+    
+    // 计算所有单元（分组+单牌）的布局
+    const units: { type: 'group' | 'single'; startIndex: number; count: number }[] = []
+    let i = 0
+    while (i < totalCards) {
+      const card = props.cards[i]
+      if (card.groupId) {
+        const group = groupsInfo.find(g => g.startIndex === i)
+        if (group) {
+          units.push({ type: 'group', startIndex: i, count: group.count })
+          i += group.count
+        } else {
+          i++
+        }
+      } else {
+        units.push({ type: 'single', startIndex: i, count: 1 })
+        i++
+      }
+    }
+    
+    // 计算当前牌所属单元的索引
+    let unitIndex = 0
+    for (let j = 0; j < units.length; j++) {
+      if (index >= units[j].startIndex && index < units[j].startIndex + units[j].count) {
+        unitIndex = j
+        break
+      }
+    }
+    
+    // 计算单元的水平布局
+    const minSpacing = cardWidth * 0.8
+    const idealSpacing = cardWidth * 0.85
+    const availableSpacing = units.length > 1 ? (maxWidth - cardWidth) / (units.length - 1) : cardWidth
+    const unitSpacing = Math.max(minSpacing, Math.min(idealSpacing, availableSpacing))
+    
+    const totalHandWidth = units.length === 1 ? cardWidth : (units.length - 1) * unitSpacing + cardWidth
+    const startOffset = -totalHandWidth / 2 + cardWidth / 2
+    
+    // 分组单元的基础X位置
+    const groupBaseX = startOffset + unitIndex * unitSpacing
+    
+    // 竖向堆叠：每张牌只显示上方40%
+    const verticalSpacing = cardHeight * 0.4 // 每张牌向上偏移40%的高度
+    const verticalOffset = -indexInGroup * verticalSpacing // 向上堆叠
+    
+    return {
+      '--card-x': `${groupBaseX}px`,
+      '--card-y': `${verticalOffset}px`,
+      '--card-rotation': '0deg',
+      zIndex: groupStartIndex + indexInGroup + 1000 // 分组的牌z-index更高
+    }
+  }
   
-  // 确保间距绝不低于80%，优先选择理想间距
-  const cardSpacing = Math.max(minSpacing, Math.min(idealSpacing, availableSpacing))
+  // 无分组的牌按原逻辑处理，但要考虑分组占据的位置
+  const groupsInfo: { groupId: string; startIndex: number; count: number }[] = []
+  let currentGroup: { groupId: string; startIndex: number; count: number } | null = null
   
-  // 计算整体手牌宽度
-  const totalHandWidth = totalCards === 1 ? cardWidth : (totalCards - 1) * cardSpacing + cardWidth
+  props.cards.forEach((card, idx) => {
+    if (card.groupId) {
+      if (!currentGroup || currentGroup.groupId !== card.groupId) {
+        currentGroup = { groupId: card.groupId, startIndex: idx, count: 1 }
+        groupsInfo.push(currentGroup)
+      } else {
+        currentGroup.count++
+      }
+    } else {
+      currentGroup = null
+    }
+  })
+  
+  // 计算所有单元
+  const units: { type: 'group' | 'single'; startIndex: number; count: number }[] = []
+  let i = 0
+  while (i < totalCards) {
+    const card = props.cards[i]
+    if (card.groupId) {
+      const group = groupsInfo.find(g => g.startIndex === i)
+      if (group) {
+        units.push({ type: 'group', startIndex: i, count: group.count })
+        i += group.count
+      } else {
+        i++
+      }
+    } else {
+      units.push({ type: 'single', startIndex: i, count: 1 })
+      i++
+    }
+  }
+  
+  // 找到当前牌的单元索引
+  let unitIndex = 0
+  for (let j = 0; j < units.length; j++) {
+    if (index >= units[j].startIndex && index < units[j].startIndex + units[j].count) {
+      unitIndex = j
+      break
+    }
+  }
+  
+  // 计算单元布局
+  const minSpacing = cardWidth * 0.8
+  const idealSpacing = cardWidth * 0.85
+  const availableSpacing = units.length > 1 ? (maxWidth - cardWidth) / (units.length - 1) : cardWidth
+  const unitSpacing = Math.max(minSpacing, Math.min(idealSpacing, availableSpacing))
+  
+  const totalHandWidth = units.length === 1 ? cardWidth : (units.length - 1) * unitSpacing + cardWidth
   const startOffset = -totalHandWidth / 2 + cardWidth / 2
   
-  // 计算当前卡牌的水平位置
-  const cardX = startOffset + index * cardSpacing
-  
-  // 直列形排列：无旋转角度，无垂直偏移
-  const rotationAngle = 0
-  const verticalOffset = 0
+  const cardX = startOffset + unitIndex * unitSpacing
   
   return {
     '--card-x': `${cardX}px`,
-    '--card-y': `${verticalOffset}px`,
-    '--card-rotation': `${rotationAngle}deg`,
+    '--card-y': '0px',
+    '--card-rotation': '0deg',
     zIndex: index + 1
   }
 }
