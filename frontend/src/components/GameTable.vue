@@ -762,21 +762,23 @@ const handleAutoSort = () => {
     sortedValues.forEach(value => {
       const valueCards = groups.get(value)!
       if (valueCards.length >= 3) {
-        // 三张（跨花色）
+        // 三张（跨花色）- 添加分组ID实现竖状排列
+        const groupId = `auto-triple-${groupCounter++}`
         const triplet = valueCards.slice(0, 3)
         triplet.forEach(card => {
           const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === value)
           if (index !== -1) usedCards.add(index)
         })
-        sortedHand.push(...triplet)
+        sortedHand.push(...triplet.map(card => ({ ...card, groupId })))
       } else if (valueCards.length >= 2) {
-        // 对子（跨花色）
+        // 对子（跨花色）- 添加分组ID实现竖状排列
+        const groupId = `auto-pair-${groupCounter++}`
         const pair = valueCards.slice(0, 2)
         pair.forEach(card => {
           const index = cards.findIndex((c, i) => !usedCards.has(i) && getCardValue(c) === value)
           if (index !== -1) usedCards.add(index)
         })
-        sortedHand.push(...pair)
+        sortedHand.push(...pair.map(card => ({ ...card, groupId })))
       } else if (valueCards.length === 1) {
         // 单张
         const single = valueCards[0]
