@@ -85,7 +85,29 @@ const startSwipe = (e: MouseEvent | TouchEvent) => {
   if (cardElement) {
     const cardIndex = Array.from(cardElement.parentElement!.children).indexOf(cardElement)
     const isCurrentlySelected = selectedCards.value.includes(cardIndex)
-    swipeMode.value = isCurrentlySelected ? 'deselect' : 'select'
+    
+    // 先处理第一张牌的选中/取消选中
+    if (isCurrentlySelected) {
+      // 如果已选中，先取消选中
+      const currentIndex = selectedCards.value.indexOf(cardIndex)
+      if (currentIndex > -1) {
+        selectedCards.value.splice(currentIndex, 1)
+        const selectedCardData = selectedCards.value.map(i => props.cards[i])
+        emit('selection-change', [...selectedCards.value], selectedCardData)
+      }
+      swipeMode.value = 'deselect'
+    } else {
+      // 如果未选中，先选中
+      if (selectedCards.value.length < props.maxSelection) {
+        selectedCards.value.push(cardIndex)
+        const selectedCardData = selectedCards.value.map(i => props.cards[i])
+        emit('selection-change', [...selectedCards.value], selectedCardData)
+      }
+      swipeMode.value = 'select'
+    }
+    
+    // 标记第一张牌已处理，避免hover时重复处理
+    swipedCards.value.add(cardIndex)
   }
 }
 
