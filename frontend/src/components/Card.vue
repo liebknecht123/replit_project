@@ -78,14 +78,12 @@ const displayRank = computed(() => {
 .card:hover {
   transform: translateX(var(--card-x, 0)) translateY(var(--card-y, 0)) rotate(var(--card-rotation, 0deg));
   box-shadow: 0 6px 12px rgba(0,0,0,0.2);
-  z-index: 100 !important;
 }
 
 .card.selected {
   transform: translateX(var(--card-x, 0)) translateY(var(--card-y, 0)) rotate(var(--card-rotation, 0deg));
   border-color: #409eff;
   box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.6);
-  z-index: 101 !important;
 }
 
 .card-content {
