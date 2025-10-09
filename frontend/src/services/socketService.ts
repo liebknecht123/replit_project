@@ -100,7 +100,9 @@ class SocketService {
     this.socket.on('game_started', (data) => {
       console.log('游戏开始:', data)
       this.gameStore.updateGameStatus('playing')
-      this.gameStore.updatePlayers(data.players)
+      if (data.players && Array.isArray(data.players)) {
+        this.gameStore.updatePlayers(data.players)
+      }
       this.gameStore.updateCurrentPlayer(data.currentPlayer)
       this.gameStore.setTotalTime(data.timeLimit || 30)
     })

@@ -44,6 +44,12 @@ export const useGameStore = defineStore('game', () => {
   }
   
   const updatePlayers = (newPlayers: any[]) => {
+    // 防御性检查：确保newPlayers是有效的数组
+    if (!newPlayers || !Array.isArray(newPlayers) || newPlayers.length === 0) {
+      console.warn('updatePlayers收到无效的玩家数据:', newPlayers)
+      return
+    }
+    
     // 将服务器的ConnectedPlayer数据转换为前端Player格式
     const myPlayerIndex = newPlayers.findIndex(p => 
       (p.userId?.toString() || p.id) === myPlayerId.value
