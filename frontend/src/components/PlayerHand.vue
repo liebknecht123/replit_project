@@ -165,11 +165,14 @@ const getCardStyle = (index: number) => {
     const verticalSpacing = cardHeight * 0.4 // 每张牌向上偏移40%的高度
     const verticalOffset = -indexInGroup * verticalSpacing // 向上堆叠
     
+    // z-index: 下方的牌遮挡上方的牌（第一张牌z-index最高）
+    const zIndex = groupStartIndex + (groupCards.length - indexInGroup) + 1000
+    
     return {
       '--card-x': `${groupBaseX}px`,
       '--card-y': `${verticalOffset}px`,
       '--card-rotation': '0deg',
-      zIndex: groupStartIndex + indexInGroup + 1000 // 分组的牌z-index更高
+      zIndex
     }
   }
   
