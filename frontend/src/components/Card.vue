@@ -111,15 +111,15 @@ const displayRank = computed(() => {
 }
 
 .suit-small {
-  font-size: 16px;
+  font-size: 20px;
   line-height: 1;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
-/* 中间：大花色图案 */
+/* 中间靠下：大花色图案 */
 .card-center {
   position: absolute;
-  top: 50%;
+  top: 60%;
   left: 50%;
   transform: translate(-50%, -50%);
   display: flex;

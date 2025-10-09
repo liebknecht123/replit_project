@@ -161,8 +161,8 @@ const getCardStyle = (index: number) => {
     // 分组单元的基础X位置
     const groupBaseX = startOffset + unitIndex * unitSpacing
     
-    // 竖向堆叠：每张牌只显示上方40%
-    const verticalSpacing = cardHeight * 0.4 // 每张牌向上偏移40%的高度
+    // 竖向堆叠：每张牌只显示上方30%
+    const verticalSpacing = cardHeight * 0.3 // 每张牌向上偏移30%的高度
     const verticalOffset = -indexInGroup * verticalSpacing // 向上堆叠
     
     // z-index: 下方的牌遮挡上方的牌（第一张牌z-index最高）
