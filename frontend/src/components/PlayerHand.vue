@@ -1,6 +1,10 @@
 <template>
   <div class="player-hand">
-    <div class="hand-container">
+    <div 
+      class="hand-container"
+      @mousedown="startSwipe"
+      @touchstart="startSwipe"
+    >
       <Card
         v-for="(card, index) in cards"
         :key="`${card.suit}-${card.rank}-${index}`"
@@ -9,6 +13,7 @@
         :is-selected="selectedCards.includes(index)"
         :style="getCardStyle(index)"
         @click="toggleCard(index)"
+        @mouseenter="onCardHover(index)"
         class="hand-card"
       />
     </div>
@@ -20,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import Card from './Card.vue'
 
 interface CardData {
@@ -43,6 +48,11 @@ const emit = defineEmits<{
   'selection-change': [selectedCards: number[], cardData: CardData[]]
 }>()
 
+// 滑动选择相关状态
+const isSwiping = ref(false)
+const swipeMode = ref<'select' | 'deselect'>('select')
+const swipedCards = ref<Set<number>>(new Set())
+
 const toggleCard = (index: number) => {
   const currentIndex = selectedCards.value.indexOf(index)
   
@@ -60,6 +70,70 @@ const toggleCard = (index: number) => {
   const selectedCardData = selectedCards.value.map(i => props.cards[i])
   emit('selection-change', [...selectedCards.value], selectedCardData)
 }
+
+// 开始滑动选择
+const startSwipe = (e: MouseEvent | TouchEvent) => {
+  // 只响应鼠标左键或触摸
+  if (e instanceof MouseEvent && e.button !== 0) return
+  
+  isSwiping.value = true
+  swipedCards.value.clear()
+  
+  // 获取点击的第一张牌，确定是选中模式还是取消模式
+  const target = e.target as HTMLElement
+  const cardElement = target.closest('.hand-card')
+  if (cardElement) {
+    const cardIndex = Array.from(cardElement.parentElement!.children).indexOf(cardElement)
+    const isCurrentlySelected = selectedCards.value.includes(cardIndex)
+    swipeMode.value = isCurrentlySelected ? 'deselect' : 'select'
+  }
+}
+
+// 结束滑动选择
+const endSwipe = () => {
+  isSwiping.value = false
+  swipedCards.value.clear()
+}
+
+// 划过卡牌时的处理
+const onCardHover = (index: number) => {
+  if (!isSwiping.value) return
+  if (swipedCards.value.has(index)) return // 已经处理过这张牌
+  
+  swipedCards.value.add(index)
+  
+  const isSelected = selectedCards.value.includes(index)
+  
+  if (swipeMode.value === 'select' && !isSelected) {
+    // 选中模式：添加到选中列表
+    if (selectedCards.value.length < props.maxSelection) {
+      selectedCards.value.push(index)
+      const selectedCardData = selectedCards.value.map(i => props.cards[i])
+      emit('selection-change', [...selectedCards.value], selectedCardData)
+    }
+  } else if (swipeMode.value === 'deselect' && isSelected) {
+    // 取消模式：从选中列表移除
+    const currentIndex = selectedCards.value.indexOf(index)
+    if (currentIndex > -1) {
+      selectedCards.value.splice(currentIndex, 1)
+      const selectedCardData = selectedCards.value.map(i => props.cards[i])
+      emit('selection-change', [...selectedCards.value], selectedCardData)
+    }
+  }
+}
+
+// 监听全局鼠标抬起和触摸结束事件
+onMounted(() => {
+  window.addEventListener('mouseup', endSwipe)
+  window.addEventListener('touchend', endSwipe)
+  window.addEventListener('touchcancel', endSwipe)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('mouseup', endSwipe)
+  window.removeEventListener('touchend', endSwipe)
+  window.removeEventListener('touchcancel', endSwipe)
+})
 
 // 按花色排序：方块、梅花、红桃、黑桃
 const getSuitOrder = (suit: string): number => {
