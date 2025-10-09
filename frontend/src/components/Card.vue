@@ -76,7 +76,7 @@ const displayRank = computed(() => {
 }
 
 .card:hover {
-  transform: translateX(var(--card-x, 0)) translateY(calc(var(--card-y, 0px) - 8px)) rotate(var(--card-rotation, 0deg)) scale(1.05);
+  transform: translateX(var(--card-x, 0)) translateY(var(--card-y, 0)) rotate(var(--card-rotation, 0deg));
   box-shadow: 0 6px 12px rgba(0,0,0,0.2);
   z-index: 100 !important;
 }
