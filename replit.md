@@ -87,3 +87,23 @@ Language preference: Chinese (中文) - Use Chinese when building and explaining
 - **Game Logic**: Advanced Guan Dan card sorting with cross-suit combination support
 - **Smart Features**: Intelligent card sorting and restore functionality for enhanced gameplay
 - **Replit Integration**: Custom Vite plugins for Replit-specific development features
+
+## Recent Bug Fixes
+
+### 2025-10-09: 退出房间竞态条件修复
+- **问题**: 用户点击退出房间时，偶尔会出现返回大厅但实际上还在房间中的bug
+- **根本原因**: 前端在调用退出房间WebSocket事件后立即导航，没有等待后端确认。如果WebSocket连接在后端处理完成前断开，会触发disconnect事件保留玩家在房间中
+- **解决方案**:
+  - 修改socketService.leaveRoom()为返回Promise，监听leave_room_result事件
+  - 添加disconnect事件监听，如果连接断开立即reject Promise
+  - 实现完善的清理机制，防止内存泄漏和重复处理
+  - 修改GameTable退出逻辑使用async/await等待确认后再导航
+  - 添加5秒超时和错误提示处理
+- **影响文件**: frontend/src/services/socketService.ts, frontend/src/components/GameTable.vue
+
+### 2025-10-09: 同花顺牌型规则修正
+- **问题**: 同花顺允许5张或更多，但根据掼蛋规则应该只能是恰好5张
+- **解决方案**:
+  - 修改牌型检测函数，同花顺检测从`cards.length >= 5`改为`cards.length === 5`
+  - 修改智能整理逻辑，当发现超过5张同花色连续牌时，只选择牌权最大的5张
+- **影响文件**: shared/cards.ts, frontend/src/components/GameTable.vue
