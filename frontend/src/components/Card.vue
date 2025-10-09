@@ -8,9 +8,14 @@
     }"
     @click="$emit('click')"
   >
-    <div class="card-content">
+    <!-- 左上角：数字 + 小花色 -->
+    <div class="card-header">
       <div class="rank">{{ displayRank }}</div>
-      <div class="suit">{{ displaySuit }}</div>
+      <div class="suit-small">{{ displaySuit }}</div>
+    </div>
+    <!-- 中间：大花色图案 -->
+    <div class="card-center">
+      <div class="suit-large">{{ displaySuit }}</div>
     </div>
   </div>
 </template>
@@ -88,27 +93,43 @@ const displayRank = computed(() => {
     inset 0 0 0 3px rgba(0, 0, 0, 0.5);
 }
 
-.card-content {
+/* 左上角：数字 + 小花色 */
+.card-header {
+  position: absolute;
+  top: 3px;
+  left: 5px;
   display: flex;
   flex-direction: row;
   align-items: flex-start;
-  justify-content: flex-start;
-  font-weight: bold;
-  position: absolute;
-  top: 4px;
-  left: 4px;
   gap: 2px;
+  font-weight: bold;
 }
 
 .rank {
-  font-size: 20px;
+  font-size: 24px;
   line-height: 1;
 }
 
-.suit {
-  font-size: 14px;
+.suit-small {
+  font-size: 16px;
   line-height: 1;
-  margin-top: 1px;
+  margin-top: 2px;
+}
+
+/* 中间：大花色图案 */
+.card-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.suit-large {
+  font-size: 40px;
+  line-height: 1;
 }
 
 .red {
@@ -124,17 +145,11 @@ const displayRank = computed(() => {
   color: white;
 }
 
-.card[data-suit="joker"] .card-content {
-  position: static;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.card[data-suit="joker"] .card-header {
+  display: none;
 }
 
-.card[data-suit="joker"] .suit {
+.card[data-suit="joker"] .suit-large {
   font-size: 36px;
-  margin-top: 0;
 }
 </style>
