@@ -90,21 +90,25 @@ const displayRank = computed(() => {
 
 .card-content {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: flex-start;
   font-weight: bold;
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  gap: 2px;
 }
 
 .rank {
-  font-size: 31.5px;
+  font-size: 20px;
   line-height: 1;
-  margin-bottom: 3px;
 }
 
 .suit {
-  font-size: 40.5px;
+  font-size: 14px;
   line-height: 1;
+  margin-top: 1px;
 }
 
 .red {
@@ -120,7 +124,17 @@ const displayRank = computed(() => {
   color: white;
 }
 
+.card[data-suit="joker"] .card-content {
+  position: static;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .card[data-suit="joker"] .suit {
   font-size: 36px;
+  margin-top: 0;
 }
 </style>
