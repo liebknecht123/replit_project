@@ -82,9 +82,9 @@ const displayRank = computed(() => {
 }
 
 .card.selected {
-  transform: translateX(var(--card-x, 0)) translateY(calc(var(--card-y, 0px) - 15px)) rotate(var(--card-rotation, 0deg)) scale(1.08);
+  transform: translateX(var(--card-x, 0)) translateY(var(--card-y, 0)) rotate(var(--card-rotation, 0deg));
   border-color: #409eff;
-  box-shadow: 0 8px 16px rgba(64, 158, 255, 0.4);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.6);
   z-index: 101 !important;
 }
 
