@@ -86,10 +86,10 @@ export function detectCardPattern(cards: CardData[]): GuanDanCardType {
     }
   }
   
-  // 钢板：连续的三张（如222333、555666777）
-  if (cards.length >= 6 && cards.length % 3 === 0) {
+  // 钢板：只能是2副相邻的三条（如AAA222、222333、KKKAAA）
+  if (cards.length === 6) {
     const groupArray = Array.from(groups.entries()).sort((a, b) => a[0] - b[0]);
-    if (groupArray.every(([_, cards]) => cards.length === 3)) {
+    if (groupArray.length === 2 && groupArray.every(([_, cards]) => cards.length === 3)) {
       const values = groupArray.map(([v]) => v);
       if (isConsecutive(values)) {
         return 'steel_plate';

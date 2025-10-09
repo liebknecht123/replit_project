@@ -590,8 +590,8 @@ const handleAutoSort = () => {
         currentSequence.push(triplet)
         lastValue = triplet.value
       } else {
-        // 处理当前序列
-        if (currentSequence.length >= 2) {
+        // 处理当前序列 - 钢板只能是2副相邻的三条
+        if (currentSequence.length === 2) {
           const groupId = `auto-steel-${groupCounter++}`
           currentSequence.forEach(t => {
             t.cards.forEach(card => {
@@ -600,15 +600,15 @@ const handleAutoSort = () => {
             })
             sortedHand.push(...t.cards.map(card => ({ ...card, groupId })))
           })
-          console.log(`找到钢板: ${currentSequence.length}组连续三张`)
+          console.log(`找到钢板: 2组连续三张`)
         }
         currentSequence = [triplet]
         lastValue = triplet.value
       }
     })
     
-    // 处理最后一个序列
-    if (currentSequence.length >= 2) {
+    // 处理最后一个序列 - 钢板只能是2副相邻的三条
+    if (currentSequence.length === 2) {
       const groupId = `auto-steel-${groupCounter++}`
       currentSequence.forEach(t => {
         t.cards.forEach(card => {
@@ -617,7 +617,7 @@ const handleAutoSort = () => {
         })
         sortedHand.push(...t.cards.map(card => ({ ...card, groupId })))
       })
-      console.log(`找到钢板: ${currentSequence.length}组连续三张`)
+      console.log(`找到钢板: 2组连续三张`)
     }
   }
   
