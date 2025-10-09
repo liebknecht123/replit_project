@@ -266,13 +266,19 @@ const handleExitRoom = () => {
       type: 'warning',
     }
   )
-  .then(() => {
-    // 永久退出房间
-    socketService.leaveRoom()
-    
-    // 导航回大厅
-    router.push('/')
-    ElMessage.success('已退出房间')
+  .then(async () => {
+    try {
+      // 永久退出房间，等待后端确认
+      await socketService.leaveRoom()
+      
+      // 确认退出成功后才导航回大厅
+      router.push('/')
+      ElMessage.success('已退出房间')
+    } catch (error: any) {
+      // 退出失败
+      console.error('退出房间失败:', error)
+      ElMessage.error(error.message || '退出房间失败，请稍后重试')
+    }
   })
   .catch(() => {
     // 用户取消

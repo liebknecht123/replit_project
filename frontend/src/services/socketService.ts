@@ -228,10 +228,59 @@ class SocketService {
     }
   }
 
-  leaveRoom() {
-    if (this.socket) {
-      this.socket.emit('leave_room')
-    }
+  leaveRoom(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket) {
+        reject(new Error('WebSocket未连接'))
+        return
+      }
+
+      let isCompleted = false
+      const socket = this.socket
+
+      // 清理函数
+      const cleanup = () => {
+        if (timeout) clearTimeout(timeout)
+        socket.off('leave_room_result', handleResult)
+        socket.off('disconnect', handleDisconnect)
+      }
+
+      // 处理退出结果
+      const handleResult = (data: { success: boolean; message: string }) => {
+        if (isCompleted) return
+        isCompleted = true
+        cleanup()
+        
+        if (data.success) {
+          resolve()
+        } else {
+          reject(new Error(data.message || '退出房间失败'))
+        }
+      }
+
+      // 处理断开连接
+      const handleDisconnect = () => {
+        if (isCompleted) return
+        isCompleted = true
+        cleanup()
+        reject(new Error('连接已断开，退出房间失败'))
+      }
+
+      // 设置超时，防止永远等待
+      const timeout = setTimeout(() => {
+        if (isCompleted) return
+        isCompleted = true
+        cleanup()
+        reject(new Error('退出房间超时'))
+      }, 5000)
+
+      // 监听退出结果和断开连接事件
+      socket.once('leave_room_result', handleResult)
+      socket.once('disconnect', handleDisconnect)
+
+      // 发送退出房间请求
+      socket.emit('leave_room')
+    })
   }
 
   temporaryLeaveRoom() {
