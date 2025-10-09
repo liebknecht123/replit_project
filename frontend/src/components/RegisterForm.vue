@@ -19,7 +19,7 @@
             v-model="registerForm.username"
             placeholder="请输入用户名"
             data-testid="input-register-username"
-            prefix-icon="User"
+            :prefix-icon="User"
             clearable
             maxlength="20"
           />
@@ -31,7 +31,7 @@
             type="password"
             placeholder="请输入密码"
             data-testid="input-register-password"
-            prefix-icon="Lock"
+            :prefix-icon="Lock"
             show-password
             clearable
           />
@@ -42,7 +42,7 @@
             v-model="registerForm.nickname"
             placeholder="请输入昵称（可选）"
             data-testid="input-register-nickname"
-            prefix-icon="Avatar"
+            :prefix-icon="Avatar"
             clearable
             maxlength="20"
           />
@@ -136,12 +136,10 @@ const handleRegister = async () => {
     const result = await response.json()
 
     if (result.success) {
-      ElMessage.success('注册成功！正在跳转到登录页面...')
+      ElMessage.success('注册成功！正在自动登录...')
       
-      // 延迟跳转到登录页面
-      setTimeout(() => {
-        router.push('/')
-      }, 1500)
+      // 注册成功后自动登录
+      await autoLogin(registerForm.username.trim(), registerForm.password)
     } else {
       ElMessage.error(result.message || '注册失败，请重试')
     }
@@ -150,6 +148,48 @@ const handleRegister = async () => {
     ElMessage.error('网络错误，请检查您的连接')
   } finally {
     isLoading.value = false
+  }
+}
+
+// 自动登录
+const autoLogin = async (username: string, password: string) => {
+  try {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        username,
+        password
+      })
+    })
+
+    const result = await response.json()
+
+    if (result.success) {
+      // 保存token到localStorage
+      localStorage.setItem('auth_token', result.data.token)
+      localStorage.setItem('user_info', JSON.stringify(result.data.user))
+      
+      ElMessage.success('登录成功！正在进入游戏...')
+      
+      // 延迟跳转到游戏大厅
+      setTimeout(() => {
+        router.push('/lobby')
+      }, 1000)
+    } else {
+      ElMessage.error('自动登录失败，请手动登录')
+      setTimeout(() => {
+        router.push('/')
+      }, 1500)
+    }
+  } catch (error) {
+    console.error('自动登录错误:', error)
+    ElMessage.error('自动登录失败，请手动登录')
+    setTimeout(() => {
+      router.push('/')
+    }, 1500)
   }
 }
 
