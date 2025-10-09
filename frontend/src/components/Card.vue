@@ -83,7 +83,9 @@ const displayRank = computed(() => {
 .card.selected {
   transform: translateX(var(--card-x, 0)) translateY(var(--card-y, 0)) rotate(var(--card-rotation, 0deg));
   border-color: #409eff;
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.6);
+  box-shadow: 
+    0 0 0 3px rgba(0, 0, 0, 0.8),
+    inset 0 0 0 3px rgba(0, 0, 0, 0.5);
 }
 
 .card-content {
