@@ -373,12 +373,8 @@ const handleManualSort = () => {
   // 获取当前手牌（权威来源）
   const currentHand = [...gameStore.myHand]
   
-  // 从当前手牌中提取选中的牌（重新绑定到当前手牌对象）
-  const selectedGroup: CardData[] = []
-  const remainingCards: CardData[] = []
-  const selectedCount = new Map<string, number>()
-  
   // 统计选中牌的数量
+  const selectedCount = new Map<string, number>()
   selectedCards.value.forEach(card => {
     const key = `${card.suit}-${card.rank}`
     selectedCount.set(key, (selectedCount.get(key) || 0) + 1)
@@ -387,19 +383,21 @@ const handleManualSort = () => {
   // 生成唯一的分组ID
   const groupId = `manual-${Date.now()}`
   
-  // 从当前手牌中分离选中的牌和剩余的牌
+  // 从当前手牌中提取选中的牌，其他牌保留原状
+  const selectedGroup: CardData[] = []
+  const otherCards: CardData[] = []
   const toExtract = new Map(selectedCount)
+  
   currentHand.forEach(card => {
     const key = `${card.suit}-${card.rank}`
     const needed = toExtract.get(key) || 0
     if (needed > 0) {
-      // 使用当前手牌中的牌对象，并添加分组ID
+      // 提取选中的牌并添加新的分组ID
       selectedGroup.push({ ...card, groupId })
       toExtract.set(key, needed - 1)
     } else {
-      // 移除旧的分组ID（如果有）
-      const { groupId: _, ...cardWithoutGroup } = card
-      remainingCards.push(cardWithoutGroup as CardData)
+      // 保留其他牌（包括已分组的和未分组的）
+      otherCards.push(card)
     }
   })
   
@@ -409,8 +407,12 @@ const handleManualSort = () => {
     return
   }
   
-  // 重新组合手牌：选中的牌型在最前方，剩余的牌保持原序
-  const newHand = [...selectedGroup, ...remainingCards]
+  // 将其他牌按是否有groupId分类，以保持已分组牌在前
+  const groupedOthers = otherCards.filter(card => card.groupId)
+  const ungroupedOthers = otherCards.filter(card => !card.groupId)
+  
+  // 重新组合手牌：已有分组 + 新分组 + 未分组的牌
+  const newHand = [...groupedOthers, ...selectedGroup, ...ungroupedOthers]
   
   // 验证手牌数量没有变化
   if (newHand.length !== currentHand.length) {
