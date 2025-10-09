@@ -1062,15 +1062,20 @@ onUnmounted(() => {
   gap: 6px;
   min-width: 104px;
   height: 52px;
+  padding: 0 16px;
   border: none;
   border-radius: 13px;
   color: white;
-  font-size: 18px;
-  font-weight: bold;
+  font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
   justify-content: center;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
+}
+
+.corner-btn :deep(.el-icon) {
+  font-size: 18px;
 }
 
 /* 回到大厅按钮 */
