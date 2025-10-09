@@ -12,7 +12,6 @@
         :rank="card.rank"
         :is-selected="selectedCards.includes(index)"
         :style="getCardStyle(index)"
-        @click="toggleCard(index)"
         @mouseenter="onCardHover(index)"
         class="hand-card"
       />
@@ -52,6 +51,9 @@ const emit = defineEmits<{
 const isSwiping = ref(false)
 const swipeMode = ref<'select' | 'deselect'>('select')
 const swipedCards = ref<Set<number>>(new Set())
+const startPosition = ref<{ x: number; y: number } | null>(null)
+const hasMoved = ref(false)
+const clickedCardIndex = ref<number | null>(null)
 
 const toggleCard = (index: number) => {
   const currentIndex = selectedCards.value.indexOf(index)
@@ -76,50 +78,85 @@ const startSwipe = (e: MouseEvent | TouchEvent) => {
   // 只响应鼠标左键或触摸
   if (e instanceof MouseEvent && e.button !== 0) return
   
+  // 记录起始位置
+  const clientX = e instanceof MouseEvent ? e.clientX : e.touches[0].clientX
+  const clientY = e instanceof MouseEvent ? e.clientY : e.touches[0].clientY
+  startPosition.value = { x: clientX, y: clientY }
+  hasMoved.value = false
+  
   isSwiping.value = true
   swipedCards.value.clear()
   
-  // 获取点击的第一张牌，确定是选中模式还是取消模式
+  // 记录点击的牌索引
   const target = e.target as HTMLElement
   const cardElement = target.closest('.hand-card')
   if (cardElement) {
     const cardIndex = Array.from(cardElement.parentElement!.children).indexOf(cardElement)
+    clickedCardIndex.value = cardIndex
+    
+    // 确定滑动模式（选中还是取消）
     const isCurrentlySelected = selectedCards.value.includes(cardIndex)
-    
-    // 先处理第一张牌的选中/取消选中
-    if (isCurrentlySelected) {
-      // 如果已选中，先取消选中
-      const currentIndex = selectedCards.value.indexOf(cardIndex)
-      if (currentIndex > -1) {
-        selectedCards.value.splice(currentIndex, 1)
-        const selectedCardData = selectedCards.value.map(i => props.cards[i])
-        emit('selection-change', [...selectedCards.value], selectedCardData)
-      }
-      swipeMode.value = 'deselect'
-    } else {
-      // 如果未选中，先选中
-      if (selectedCards.value.length < props.maxSelection) {
-        selectedCards.value.push(cardIndex)
-        const selectedCardData = selectedCards.value.map(i => props.cards[i])
-        emit('selection-change', [...selectedCards.value], selectedCardData)
-      }
-      swipeMode.value = 'select'
-    }
-    
-    // 标记第一张牌已处理，避免hover时重复处理
-    swipedCards.value.add(cardIndex)
+    swipeMode.value = isCurrentlySelected ? 'deselect' : 'select'
   }
 }
 
 // 结束滑动选择
 const endSwipe = () => {
+  // 如果没有移动，则是单击操作
+  if (!hasMoved.value && clickedCardIndex.value !== null) {
+    toggleCard(clickedCardIndex.value)
+  }
+  
   isSwiping.value = false
   swipedCards.value.clear()
+  startPosition.value = null
+  clickedCardIndex.value = null
+  hasMoved.value = false
+}
+
+// 检测鼠标/触摸移动
+const checkMovement = (e: MouseEvent | TouchEvent) => {
+  if (!isSwiping.value || !startPosition.value) return
+  
+  const clientX = e instanceof MouseEvent ? e.clientX : e.touches[0].clientX
+  const clientY = e instanceof MouseEvent ? e.clientY : e.touches[0].clientY
+  
+  const deltaX = Math.abs(clientX - startPosition.value.x)
+  const deltaY = Math.abs(clientY - startPosition.value.y)
+  
+  // 移动距离超过5px，认为是滑动
+  if (deltaX > 5 || deltaY > 5) {
+    if (!hasMoved.value) {
+      hasMoved.value = true
+      
+      // 首次检测到滑动时，处理第一张牌
+      if (clickedCardIndex.value !== null) {
+        const isSelected = selectedCards.value.includes(clickedCardIndex.value)
+        
+        if (swipeMode.value === 'select' && !isSelected) {
+          if (selectedCards.value.length < props.maxSelection) {
+            selectedCards.value.push(clickedCardIndex.value)
+            const selectedCardData = selectedCards.value.map(i => props.cards[i])
+            emit('selection-change', [...selectedCards.value], selectedCardData)
+          }
+        } else if (swipeMode.value === 'deselect' && isSelected) {
+          const currentIndex = selectedCards.value.indexOf(clickedCardIndex.value)
+          if (currentIndex > -1) {
+            selectedCards.value.splice(currentIndex, 1)
+            const selectedCardData = selectedCards.value.map(i => props.cards[i])
+            emit('selection-change', [...selectedCards.value], selectedCardData)
+          }
+        }
+        
+        swipedCards.value.add(clickedCardIndex.value)
+      }
+    }
+  }
 }
 
 // 划过卡牌时的处理
 const onCardHover = (index: number) => {
-  if (!isSwiping.value) return
+  if (!isSwiping.value || !hasMoved.value) return
   if (swipedCards.value.has(index)) return // 已经处理过这张牌
   
   swipedCards.value.add(index)
@@ -144,16 +181,20 @@ const onCardHover = (index: number) => {
   }
 }
 
-// 监听全局鼠标抬起和触摸结束事件
+// 监听全局鼠标抬起、移动和触摸事件
 onMounted(() => {
   window.addEventListener('mouseup', endSwipe)
+  window.addEventListener('mousemove', checkMovement)
   window.addEventListener('touchend', endSwipe)
+  window.addEventListener('touchmove', checkMovement)
   window.addEventListener('touchcancel', endSwipe)
 })
 
 onUnmounted(() => {
   window.removeEventListener('mouseup', endSwipe)
+  window.removeEventListener('mousemove', checkMovement)
   window.removeEventListener('touchend', endSwipe)
+  window.removeEventListener('touchmove', checkMovement)
   window.removeEventListener('touchcancel', endSwipe)
 })
 
